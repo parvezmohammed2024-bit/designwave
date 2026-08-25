@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #111111;
+  --paper: #f7f4ed;
+  /* Design Wave logo colours: brand = purple "D", wave = blue wave/"W" */
+  --brand: #7a22c9;
+  --wave: #0ea5e9;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.75; /* Bangla ascenders/descenders need air */
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.45; /* tighter, but never clips conjuncts */
+}
+
+/* Animated containers must never clip Bangla ascenders/descenders */
+.bangla-safe {
+  padding-block: 0.18em;
+  margin-block: -0.18em;
+}
+
+::selection {
+  background: var(--brand);
+  color: var(--paper);
+}
+
+/* Paper grain — SVG turbulence as data URI, no network request */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: -60px;
+  pointer-events: none;
+  z-index: 80;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  will-change: transform;
+  transform: translateY(var(--grain-shift, 0px));
+}
+
+/* Custom cursor: hide the follower entirely on touch / reduced motion */
+@media (hover: hover) and (pointer: fine) {
+  .cursor-card {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    pointer-events: none;
+    width: 22px;
+    height: 30px;
+    border-radius: 4px;
+    border: 1.5px solid var(--ink);
+    background: rgba(247, 244, 237, 0.6);
+    mix-blend-mode: multiply;
+  }
+}
+
+/* Reduced motion: static site, everything visible */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .grain::before {
+    transform: none;
+  }
+}
+
+/* Torn paper edge divider (SVG mask, pure CSS, transform-friendly) */
+.torn-edge {
+  height: 42px;
+  background: var(--ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 42' preserveAspectRatio='none'%3E%3Cpath d='M0 42V18c30-6 55 8 90 4s60-16 95-12 55 14 90 10 65-18 100-14 55 16 90 12 60-14 95-10 55 12 90 8 65-16 100-12 55 14 90 10 60-12 95-8 55 10 90 6 45-8 75-4V42Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 42' preserveAspectRatio='none'%3E%3Cpath d='M0 42V18c30-6 55 8 90 4s60-16 95-12 55 14 90 10 65-18 100-14 55 16 90 12 60-14 95-10 55 12 90 8 65-16 100-12 55 14 90 10 60-12 95-8 55 10 90 6 45-8 75-4V42Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.torn-edge--flip {
+  transform: scaleY(-1);
+}
+.torn-edge--brand {
+  background: var(--brand);
+}
+.torn-edge--paper {
+  background: var(--paper);
+}

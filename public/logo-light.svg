@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360">
+  <defs>
+    <linearGradient id="dwl-d" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#C084FC"/>
+      <stop offset="1" stop-color="#F0ABFC"/>
+    </linearGradient>
+    <linearGradient id="dwl-w" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#dwl-w)">
+    <rect x="26" y="168" width="26" height="26" rx="4"/>
+    <rect x="64" y="196" width="18" height="18" rx="3"/>
+    <rect x="40" y="226" width="30" height="30" rx="5"/>
+    <rect x="434" y="86" width="30" height="30" rx="5"/>
+    <rect x="474" y="60" width="22" height="22" rx="4"/>
+    <rect x="466" y="122" width="16" height="16" rx="3"/>
+  </g>
+
+  <path fill="url(#dwl-d)" fill-rule="evenodd"
+    d="M112 26 H210 C296 26 352 84 352 164 C352 244 296 302 210 302 H112 Z
+       M172 82 H208 C258 82 292 114 292 164 C292 214 258 246 208 246 H172 Z"/>
+
+  <g transform="translate(138 158)" stroke="#111111" fill="none" stroke-width="6">
+    <rect x="-24" y="10" width="18" height="18" rx="3" fill="#111111" stroke="none" transform="rotate(-16 -15 19)"/>
+    <path d="M28 2 58 16 50 48 16 40 12 14Z" stroke-linejoin="round"/>
+    <circle cx="6" cy="-6" r="8" fill="#111111" stroke="none"/>
+    <circle cx="34" cy="26" r="9" fill="#111111" stroke="none"/>
+    <path d="M10 -2 30 18" stroke-width="5"/>
+  </g>
+
+  <path fill="url(#dwl-w)"
+    d="M6 268 C96 312 190 306 268 258 C356 204 440 182 514 196 L514 240 C448 226 372 244 300 292 C216 348 96 352 10 312 Z"/>
+  <path fill="#111111" opacity="0.18"
+    d="M14 276 C100 314 190 304 264 258 C350 206 436 186 510 200 L510 212 C436 200 354 218 284 266 C204 320 100 328 16 294 Z"/>
+
+  <path fill="url(#dwl-w)" d="M292 206l46-16 30 86 36-96 40 8 28 88 36-124 42 24-60 158-44-6-28-82-32 86-44-4-50-122Z"/>
+</svg>
