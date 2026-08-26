@@ -45,13 +45,58 @@ The dev server runs on **http://localhost:3100**.
 ### Database setup
 
 Run [`supabase/schema.sql`](supabase/schema.sql) against your Supabase project. It
-creates the `dw_orders` table, the `dw_track_order` lookup function, the private
-`dw-designs` storage bucket, and the row-level security policies.
+creates every `dw_*` table (catalogue, price slabs, add-ons, orders, payments,
+customers, quotations, banner slides, settings, staff, activity log), the storage
+buckets, and the row-level security policies.
 
-Security model: anonymous visitors can **insert** orders and **upload** design
-files, but cannot read the orders table or read back uploads. Order tracking goes
-through a `security definer` function that requires **both** the order ID and the
-matching phone number.
+Security model: anonymous visitors can **place orders** (through the
+`dw_place_order` function) and **upload** design files, but cannot read the orders
+table or read back uploads. Order tracking goes through a `security definer`
+function that requires **both** the order ID and the matching phone number.
+Everything else is staff-only, gated on a row in `dw_staff`.
+
+### Admin panel
+
+Sign in at **`/admin`**.
+
+| | |
+|---|---|
+| Email | `admin@designwave.com` |
+| Password | `DesignWave#2026` |
+
+**Change this password immediately** — Supabase dashboard → Authentication →
+Users → admin@designwave.com → Reset password. To add staff: create the user in
+that same screen, then insert a row into `dw_staff` with their `id` and a role of
+`admin` or `staff`.
+
+### Money
+
+Every monetary value is stored as an **integer number of poisha** (1 taka = 100
+poisha). Slab rates like ৳0.60/piece make floating-point rounding compound badly
+across thousands of pieces, so nothing in this codebase stores money as a float.
+Use `tk()` / `toPoisha()` from `lib/admin/money.ts` (admin) or `formatPoisha()`
+from `lib/pricing.ts` (storefront).
+
+### Pricing model
+
+Products carry an **MOQ**, a **step increment**, and a set of **price slabs**. The
+customer types any quantity at or above the MOQ and the rate resolves from
+whichever slab it lands in — e.g. Standard Business Card:
+
+| Quantity | Rate/piece |
+|---|---|
+| 100–499 | ৳1.00 |
+| 500–999 | ৳0.80 |
+| 1,000–2,999 | ৳0.60 |
+| 3,000+ | ৳0.50 |
+
+Add-ons apply on top, either flat or per piece. All of it — MOQ, step, slabs,
+add-ons — is editable from **Admin → Products** with no deploy; the storefront
+picks changes up within 60 seconds (ISR).
+
+The `৳X থেকে` label on cards is the **minimum spend** (MOQ priced at the MOQ's own
+slab), not the cheapest rate — advertising ৳0.50/pc when the smallest possible
+order is 100 pieces at ৳1.00 would be misleading.
 
 ---
 
@@ -71,21 +116,30 @@ matching phone number.
 ## Project structure
 
 ```
-app/                    routes (App Router)
-  page.tsx              home
-  collections/          shop grid + [slug] product pages
-  checkout/             4-step checkout
-  track/                order tracking
-components/             UI + motion components
+app/
+  (site)/               customer-facing routes + their chrome
+    page.tsx            home
+    collections/        shop grid + [slug] product pages
+    checkout/           4-step checkout
+    track/              order tracking
+  admin/                staff panel (own layout, no storefront chrome)
+    orders/             list, detail, job sheet, bulk status
+    products/           CRUD + slab/add-on editing + bulk price change
+    customers/          CRM, segments, CSV export
+    quotations/         build, send, convert to order
+    banner/             homepage slides + editable content
+    reports/  settings/
+components/
+  admin/                admin-only components
   checkout/             CheckoutFlow, TrackOrder
 lib/
-  products.ts           product catalogue — names, prices, variants, image paths
-  cart.ts               Zustand cart store + delivery-charge logic
-  site.ts               contact number, payment number, delivery rates
+  catalog.ts            reads products/banner/settings from Supabase
+  pricing.ts            slab resolution, totals, formatting (poisha)
+  cart.ts               Zustand cart; re-prices on quantity edit
+  admin/                server auth helpers, money, order state machine
   districts.ts          all 64 Bangladesh districts
-  useMotionPrefs.ts     central motion gate
-public/products/        product photography (one file per product slug)
-supabase/schema.sql     database schema
+public/products/        seed product photography
+supabase/schema.sql     full database schema
 ```
 
 ---

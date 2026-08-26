@@ -1,11 +1,8 @@
-import type { Collection } from "@/lib/products";
+import type { Hue } from "@/lib/catalog";
 
 // Design Wave palette (see tailwind.config.ts). Used only as the
 // fallback face when a product photo is missing.
-const palettes: Record<
-  Collection["hue"],
-  { bg: string; fg: string; accent: string }
-> = {
+const palettes: Record<Hue, { bg: string; fg: string; accent: string }> = {
   brand: { bg: "#6B21A8", fg: "#F7F4ED", accent: "#7DD3FC" },
   wave: { bg: "#0EA5E9", fg: "#111111", accent: "#F7F4ED" },
   ink: { bg: "#111111", fg: "#F7F4ED", accent: "#38BDF8" },
@@ -21,7 +18,7 @@ export default function CardArt({
   label,
   className = "",
 }: {
-  hue: Collection["hue"];
+  hue: Hue;
   label: string;
   className?: string;
 }) {

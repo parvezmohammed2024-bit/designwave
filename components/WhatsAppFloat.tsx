@@ -1,27 +1,22 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { usePathname } from "next/navigation";
-import { getProduct } from "@/lib/products";
 import { waLink } from "@/lib/site";
+import { useCurrentProduct } from "@/lib/currentProduct";
 
 /**
  * Floating WhatsApp button. On a product page the message is prefilled
  * with that product's name; elsewhere a generic greeting.
  */
-export default function WhatsAppFloat() {
-  const pathname = usePathname();
-  const slug = pathname?.startsWith("/collections/")
-    ? pathname.split("/")[2]
-    : null;
-  const product = slug ? getProduct(slug) : null;
+export default function WhatsAppFloat({ phone }: { phone?: string }) {
+  const product = useCurrentProduct((s) => s.name);
   const message = product
-    ? `আসসালামু আলাইকুম! আমি "${product.name}" নিয়ে জানতে চাই।`
+    ? `আসসালামু আলাইকুম! আমি "${product}" নিয়ে জানতে চাই।`
     : "আসসালামু আলাইকুম! আমি কাস্টম কার্ড নিয়ে জানতে চাই।";
 
   return (
     <motion.a
-      href={waLink(message)}
+      href={waLink(message, phone)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="হোয়াটসঅ্যাপে মেসেজ করুন"

@@ -4,16 +4,15 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
-import { collections } from "@/lib/products";
+import type { Product } from "@/lib/catalog";
 import { useMotionPrefs } from "@/lib/useMotionPrefs";
 import { RevealWords } from "./Reveal";
 
 /**
  * Work gallery: a horizontal band of printed-card photography that
- * slides sideways as the page scrolls (transform-only). Static row
- * under reduced motion; native horizontal scroll on mobile.
+ * slides sideways as the page scrolls (transform-only).
  */
-export default function GalleryMarquee() {
+export default function GalleryMarquee({ products }: { products: Product[] }) {
   const { full } = useMotionPrefs();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -22,7 +21,9 @@ export default function GalleryMarquee() {
   });
   const x = useTransform(scrollYProgress, [0, 1], ["2%", "-32%"]);
 
-  const items = [...collections, ...collections.slice(0, 4)];
+  const withPhotos = products.filter((p) => p.image);
+  if (!withPhotos.length) return null;
+  const items = [...withPhotos, ...withPhotos.slice(0, 4)];
 
   return (
     <section
@@ -45,13 +46,13 @@ export default function GalleryMarquee() {
       {full ? (
         <motion.div style={{ x }} className="mt-8 flex w-max gap-4 px-5">
           {items.map((c, i) => (
-            <MarqueeTile key={`${c.slug}-${i}`} slug={c.slug} image={c.image} name={c.name} />
+            <MarqueeTile key={`${c.slug}-${i}`} slug={c.slug} image={c.image!} name={c.name_bn} />
           ))}
         </motion.div>
       ) : (
         <div className="mt-8 flex snap-x gap-4 overflow-x-auto px-5 pb-3">
-          {collections.map((c) => (
-            <MarqueeTile key={c.slug} slug={c.slug} image={c.image} name={c.name} snap />
+          {withPhotos.map((c) => (
+            <MarqueeTile key={c.slug} slug={c.slug} image={c.image!} name={c.name_bn} snap />
           ))}
         </div>
       )}

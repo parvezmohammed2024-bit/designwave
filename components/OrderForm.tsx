@@ -3,7 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { collections } from "@/lib/products";
+
+type Option = { slug: string; name: string };
 
 type Errors = Partial<Record<"name" | "phone" | "collection" | "qty", string>>;
 
@@ -12,7 +13,7 @@ type Errors = Partial<Record<"name" | "phone" | "collection" | "qty", string>>;
  * their field, and numeric inputs keep ENGLISH digits for usability —
  * only display text is Bangla.
  */
-export default function OrderForm() {
+export default function OrderForm({ options }: { options: Option[] }) {
   const params = useSearchParams();
   const preselect = params.get("collection") ?? "";
   const [errors, setErrors] = useState<Errors>({});
@@ -123,7 +124,7 @@ export default function OrderForm() {
           aria-invalid={!!errors.collection}
         >
           <option value="">বাছাই করুন…</option>
-          {collections.map((c) => (
+          {options.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
             </option>

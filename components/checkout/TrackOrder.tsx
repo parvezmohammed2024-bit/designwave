@@ -4,15 +4,18 @@ import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { formatTaka, toBanglaDigits } from "@/lib/format";
+import { toBanglaDigits } from "@/lib/format";
+import { formatPoisha } from "@/lib/pricing";
 import { PHONE_BN, waLink } from "@/lib/site";
 
 const STATUS_STEPS: { key: string; label: string }[] = [
   { key: "payment_pending", label: "পেমেন্ট যাচাই" },
-  { key: "design", label: "ডিজাইন চলছে" },
-  { key: "approved", label: "ডিজাইন অনুমোদিত" },
-  { key: "printing", label: "প্রিন্ট ও ফিনিশিং" },
-  { key: "shipped", label: "ডেলিভারিতে" },
+  { key: "design_charge_paid", label: "ডিজাইন চার্জ জমা" },
+  { key: "design_in_review", label: "ডিজাইন চলছে" },
+  { key: "design_approved", label: "ডিজাইন অনুমোদিত" },
+  { key: "advance_paid", label: "অ্যাডভান্স জমা" },
+  { key: "in_production", label: "প্রিন্ট ও ফিনিশিং" },
+  { key: "out_for_delivery", label: "ডেলিভারিতে" },
   { key: "delivered", label: "ডেলিভারি সম্পন্ন" },
 ];
 
@@ -140,14 +143,14 @@ export default function TrackOrder() {
                 <span className="min-w-0 truncate pr-3">
                   {it.name} — {toBanglaDigits(it.tierQty)} পিস × {toBanglaDigits(it.quantity)}
                 </span>
-                <span>{formatTaka(it.lineTotal)}</span>
+                <span>{formatPoisha(it.lineTotal)}</span>
               </div>
             ))}
             <div className="mt-2 flex justify-between border-t border-ink/10 pt-2 font-bold">
-              <span>মোট</span><span>{formatTaka(order.total)}</span>
+              <span>মোট</span><span>{formatPoisha(order.total)}</span>
             </div>
             <div className="flex justify-between text-brand-700">
-              <span>প্রদেয়</span><span className="font-semibold">{formatTaka(order.amount_due)}</span>
+              <span>প্রদেয়</span><span className="font-semibold">{formatPoisha(order.amount_due)}</span>
             </div>
           </div>
 

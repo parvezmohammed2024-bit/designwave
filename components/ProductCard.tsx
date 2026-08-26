@@ -4,29 +4,36 @@ import { motion, useMotionValue, useSpring } from "framer-motion";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import CardFace from "./CardFace";
-import { formatTaka } from "@/lib/format";
-import type { Collection } from "@/lib/products";
+import { formatPoisha, minOrderValue } from "@/lib/pricing";
+import { toBanglaDigits } from "@/lib/format";
+import type { Product } from "@/lib/catalog";
 import { useMotionPrefs } from "@/lib/useMotionPrefs";
+import { useCart } from "@/lib/cart";
+import { useToast } from "@/lib/toast";
 
 /**
- * 3D flip tile: hover flips to the card's "back" (desktop), tap toggles
- * on touch. Cursor-following tilt on desktop only. Transform-only.
- * Tilt and flip live on separate nested elements so their rotations
- * don't fight over the same transform.
+ * Grid tile. The 3D flip/tilt lives in nested transform layers; the order
+ * buttons sit in a sibling overlay ABOVE them, so they never rotate with
+ * the card and the flip animation is untouched.
  */
 export default function ProductCard({
   item,
   priority = false,
-  onAdd,
+  onOrder,
 }: {
-  item: Collection;
+  item: Product;
   priority?: boolean;
-  /** Opens the variant picker (QuickAdd) for this product. */
-  onAdd?: (item: Collection) => void;
+  /** opens the quick-order modal */
+  onOrder?: (item: Product) => void;
 }) {
   const { full, reduced } = useMotionPrefs();
   const ref = useRef<HTMLDivElement>(null);
   const [flipped, setFlipped] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const add = useCart((s) => s.add);
+  const openDrawer = useCart((s) => s.openDrawer);
+  const show = useToast((s) => s.show);
 
   const tiltX = useMotionValue(0);
   const tiltY = useMotionValue(0);
@@ -39,106 +46,130 @@ export default function ProductCard({
     tiltY.set(((e.clientX - r.left) / r.width - 0.5) * 10);
     tiltX.set(((e.clientY - r.top) / r.height - 0.5) * -10);
   };
-  const resetTilt = () => {
-    tiltX.set(0);
-    tiltY.set(0);
+
+  const fromPrice = formatPoisha(
+    minOrderValue(item.slabs, item.moq, item.base_unit_price)
+  );
+
+  /** Secondary action: straight to cart at the minimum order quantity. */
+  const instantAdd = async () => {
+    setAdding(true);
+    await new Promise((r) => setTimeout(r, 260));
+    add({
+      slug: item.slug,
+      name: item.name_bn,
+      image: item.image,
+      quantity: item.moq,
+      moq: item.moq,
+      step: item.step_quantity,
+      slabs: item.slabs,
+      addons: [],
+    });
+    setAdding(false);
+    show(`${item.name_bn} — ${toBanglaDigits(item.moq)} পিস কার্টে যোগ হয়েছে`);
+    openDrawer();
   };
 
   return (
     <div>
       <div
         ref={ref}
+        className="group relative"
         style={{ perspective: "1200px" }}
         onPointerMove={onMove}
         onPointerLeave={() => {
-          resetTilt();
+          tiltX.set(0);
+          tiltY.set(0);
           if (full) setFlipped(false);
         }}
         onPointerEnter={() => full && setFlipped(true)}
       >
         {/* tilt layer */}
         <motion.div
-          style={{
-            transformStyle: "preserve-3d",
-            rotateX: sTiltX,
-            rotateY: sTiltY,
-          }}
+          style={{ transformStyle: "preserve-3d", rotateX: sTiltX, rotateY: sTiltY }}
         >
           {/* flip layer */}
           <motion.button
             type="button"
             aria-pressed={flipped}
-            aria-label={`${item.name} — বিস্তারিত দেখুন`}
+            aria-label={`${item.name_bn} — বিস্তারিত দেখুন`}
             onClick={() => !full && setFlipped(!flipped)}
             className="relative block aspect-[5/7] w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-700"
             style={{ transformStyle: "preserve-3d" }}
             animate={{ rotateY: reduced ? 0 : flipped ? 180 : 0 }}
             transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* front */}
             <div
               className="absolute inset-0 overflow-hidden rounded-xl shadow-[0_18px_40px_-24px_rgba(17,17,17,0.5)]"
               style={{ backfaceVisibility: "hidden" }}
             >
               <CardFace
-                item={item}
+                image={item.image}
+                blur={item.blur_data_url}
+                hue={item.hue}
+                name={item.name_bn}
                 sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="h-full w-full"
                 priority={priority}
               />
             </div>
-            {/* back */}
             <div
               className="absolute inset-0 flex flex-col justify-between overflow-hidden rounded-xl border border-ink/15 bg-paper p-5 shadow-[0_18px_40px_-24px_rgba(17,17,17,0.5)]"
-              style={{
-                backfaceVisibility: "hidden",
-                transform: "rotateY(180deg)",
-              }}
+              style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
               <div>
-                <p className="bangla-safe text-lg font-bold">{item.name}</p>
+                <p className="bangla-safe text-lg font-bold">{item.name_bn}</p>
                 <p className="mt-2 text-sm leading-bangla text-ink/70">
-                  {item.tagline}
+                  {item.tagline_bn}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-ink/60">শুরু</p>
-                <p className="text-2xl font-bold text-brand-700">
-                  {formatTaka(item.priceFrom)}
+              <div className="text-sm text-ink/70">
+                <p>সর্বনিম্ন {toBanglaDigits(item.moq)} পিস</p>
+                <p className="mt-1 text-xl font-bold text-brand-700">
+                  {fromPrice} থেকে
                 </p>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd?.(item);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onAdd?.(item);
-                    }
-                  }}
-                  className="mt-3 inline-block rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-brand-700"
-                >
-                  কার্টে যোগ করুন
-                </span>
               </div>
             </div>
           </motion.button>
         </motion.div>
+
+        {/* action overlay — above the transform layers, never flips.
+            Always visible on mobile; revealed on hover from md up. */}
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex gap-2 opacity-100 transition-all duration-300 ease-paper md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100">
+          <button
+            type="button"
+            onClick={() => onOrder?.(item)}
+            className="pointer-events-auto flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-ink px-3 text-sm font-bold text-paper shadow-lg transition-colors hover:bg-brand-700"
+          >
+            অর্ডার করুন
+          </button>
+          <button
+            type="button"
+            onClick={instantAdd}
+            disabled={adding}
+            aria-label={`${item.name_bn} — সর্বনিম্ন পরিমাণে কার্টে যোগ করুন`}
+            className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper text-ink shadow-lg transition-colors hover:bg-brand-700 hover:text-paper disabled:opacity-70"
+          >
+            {adding ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink/30 border-t-ink" />
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 7h12l-1.5 12h-9L6 7Z" />
+                <path d="M9 7a3 3 0 0 1 6 0" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
+
       <div className="mt-3 flex items-baseline justify-between gap-2 px-1">
         <Link
           href={`/collections/${item.slug}`}
           className="bangla-safe min-w-0 truncate font-semibold hover:text-brand-700"
         >
-          {item.name}
+          {item.name_bn}
         </Link>
-        <span className="shrink-0 text-sm text-ink/60">
-          {formatTaka(item.priceFrom)} থেকে
-        </span>
+        <span className="shrink-0 text-sm text-ink/60">{fromPrice} থেকে</span>
       </div>
     </div>
   );

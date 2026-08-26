@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { toBanglaDigits } from "@/lib/format";
-import { PHONE_BN, telLink, waLink } from "@/lib/site";
+import { phoneToBn, telLink, waLink } from "@/lib/site";
+import type { ContactSettings } from "@/lib/catalog";
 import Logo from "./Logo";
 
-export default function Footer() {
+export default function Footer({ contact }: { contact?: ContactSettings }) {
+  const phoneIntl = contact?.phone ?? "+8801836065919";
+  const wa = contact?.whatsapp ?? "8801836065919";
+
   return (
     <footer className="bg-ink text-paper">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-10 md:grid-cols-3 md:py-12">
@@ -16,36 +20,30 @@ export default function Footer() {
         </div>
         <nav aria-label="ফুটার লিংক" className="space-y-2.5 text-sm">
           <p className="mb-3 font-semibold text-paper/50">পাতা</p>
-          <Link className="block hover:text-wave-300" href="/collections">
-            কালেকশন
-          </Link>
-          <Link className="block hover:text-wave-300" href="/#how">
-            কীভাবে কাজ করে
-          </Link>
-          <Link className="block hover:text-wave-300" href="/track">
-            অর্ডার ট্র্যাকিং
-          </Link>
-          <Link className="block hover:text-wave-300" href="/order">
-            কাস্টম অনুরোধ
-          </Link>
+          <Link className="block hover:text-wave-300" href="/collections">কালেকশন</Link>
+          <Link className="block hover:text-wave-300" href="/#how">কীভাবে কাজ করে</Link>
+          <Link className="block hover:text-wave-300" href="/track">অর্ডার ট্র্যাকিং</Link>
+          <Link className="block hover:text-wave-300" href="/order">কাস্টম অনুরোধ</Link>
         </nav>
         <div className="space-y-2.5 text-sm">
           <p className="mb-3 font-semibold text-paper/50">যোগাযোগ</p>
-          <p dir="ltr">hello@designwave.com</p>
+          <p dir="ltr">{contact?.email ?? "hello@designwave.com"}</p>
           <p dir="ltr" className="tracking-wide">
-            <a href={telLink} className="hover:text-wave-300">
-              {PHONE_BN}
+            <a href={`tel:${phoneIntl}`} className="hover:text-wave-300">
+              {phoneToBn(phoneIntl)}
             </a>
           </p>
           <a
-            href={waLink()}
+            href={waLink(undefined, wa)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block font-semibold text-wave-300 underline underline-offset-4 hover:text-paper"
           >
             হোয়াটসঅ্যাপে মেসেজ করুন
           </a>
-          <p className="text-paper/70">শনি–বৃহস্পতি, সকাল ১০টা – রাত ৮টা</p>
+          <p className="text-paper/70">
+            {contact?.hours_bn ?? "শনি–বৃহস্পতি, সকাল ১০টা – রাত ৮টা"}
+          </p>
         </div>
       </div>
       <div className="border-t border-paper/10 py-5 text-center text-xs text-paper/50">

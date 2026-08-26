@@ -4,28 +4,30 @@ import { motion, useScroll, useTransform, MotionValue } from "framer-motion";
 import { useRef } from "react";
 import Link from "next/link";
 import CardFace from "./CardFace";
-import {
-  categories,
-  collections,
-  featuredCollections,
-  getProduct,
-} from "@/lib/products";
+import type { CategoryTile, Product } from "@/lib/catalog";
 import { toBanglaDigits } from "@/lib/format";
 import { useMotionPrefs } from "@/lib/useMotionPrefs";
 import { RevealWords, Rise } from "./Reveal";
 
 /**
- * Home collections: a (shorter) pinned deck-fan on desktop, then the
- * full six-category grid with real photography on every breakpoint.
+ * Pinned deck-fan on desktop, then the category grid on every breakpoint.
  * Teaser copy is benefit-led — prices live in the shop grid and cart.
  */
-export default function CollectionsDeck() {
+export default function CollectionsDeck({
+  products,
+  featured,
+  categories,
+}: {
+  products: Product[];
+  featured: Product[];
+  categories: CategoryTile[];
+}) {
   const { full } = useMotionPrefs();
+  const deck = featured.length ? featured : products.slice(0, 5);
 
   return (
     <section className="bg-paper py-12 md:py-0" aria-labelledby="collections-title">
-      {/* deck fan — desktop with motion only */}
-      {full && <DesktopDeck />}
+      {full && deck.length > 0 && <DesktopDeck deck={deck} />}
 
       <div className="mx-auto max-w-6xl px-5 md:py-14">
         <div className="md:hidden">
@@ -48,10 +50,11 @@ export default function CollectionsDeck() {
           </p>
         </div>
 
-        {/* six-category grid, real imagery */}
         <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
           {categories.map((cat, i) => {
-            const cover = getProduct(cat.productSlugs[0])!;
+            const inCat = products.filter((p) => p.category_slug === cat.slug);
+            const cover = inCat[0];
+            if (!cover) return null;
             return (
               <Rise key={cat.slug} delay={i * 0.06}>
                 <Link
@@ -60,20 +63,23 @@ export default function CollectionsDeck() {
                 >
                   <div className="relative aspect-[4/3] overflow-hidden">
                     <CardFace
-                      item={cover}
+                      image={cover.image}
+                      blur={cover.blur_data_url}
+                      hue={cover.hue}
+                      name={cover.name_bn}
                       sizes="(max-width: 768px) 50vw, 33vw"
                       className="h-full w-full transition-transform duration-500 ease-paper group-hover:scale-105"
                     />
                     <span className="absolute right-2 top-2 rounded-full bg-paper/90 px-2.5 py-1 text-xs font-bold text-ink">
-                      {toBanglaDigits(cat.productSlugs.length)}টি ডিজাইন
+                      {toBanglaDigits(inCat.length)}টি ডিজাইন
                     </span>
                   </div>
                   <div className="p-4">
                     <h3 className="bangla-safe font-bold group-hover:text-brand-700">
-                      {cat.name}
+                      {cat.name_bn}
                     </h3>
                     <p className="mt-1 text-sm leading-bangla text-ink/60">
-                      {cat.detail}
+                      {cat.detail_bn}
                     </p>
                   </div>
                 </Link>
@@ -87,7 +93,7 @@ export default function CollectionsDeck() {
             href="/collections"
             className="inline-block rounded-full bg-ink px-7 py-3 font-semibold text-paper transition-colors hover:bg-brand-700"
           >
-            সব {toBanglaDigits(collections.length)}টি ডিজাইন দেখুন
+            সব {toBanglaDigits(products.length)}টি ডিজাইন দেখুন
           </Link>
         </Rise>
       </div>
@@ -95,7 +101,7 @@ export default function CollectionsDeck() {
   );
 }
 
-function DesktopDeck() {
+function DesktopDeck({ deck }: { deck: Product[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -112,8 +118,14 @@ function DesktopDeck() {
           স্ক্রল করুন — তাস মেলার মতো খুলে যাবে ডেক।
         </p>
         <div className="relative mt-10 h-[320px] w-full max-w-4xl">
-          {featuredCollections.map((c, i) => (
-            <DealtCard key={c.slug} index={i} progress={scrollYProgress} item={c} />
+          {deck.map((c, i) => (
+            <DealtCard
+              key={c.slug}
+              index={i}
+              count={deck.length}
+              progress={scrollYProgress}
+              item={c}
+            />
           ))}
         </div>
       </div>
@@ -123,15 +135,17 @@ function DesktopDeck() {
 
 function DealtCard({
   index,
+  count,
   progress,
   item,
 }: {
   index: number;
+  count: number;
   progress: MotionValue<number>;
-  item: (typeof collections)[number];
+  item: Product;
 }) {
-  const mid = (featuredCollections.length - 1) / 2;
-  const offset = index - mid; // -2..2
+  const mid = (count - 1) / 2;
+  const offset = index - mid;
   const end = Math.min(0.9, 0.35 + index * 0.12);
 
   const x = useTransform(progress, [0.05, end], [0, offset * 168]);
@@ -146,12 +160,15 @@ function DealtCard({
       <Link href={`/collections/${item.slug}`} className="group block">
         <div className="-ml-[95px] transition-transform duration-300 ease-paper group-hover:-translate-y-3">
           <CardFace
-            item={item}
+            image={item.image}
+            blur={item.blur_data_url}
+            hue={item.hue}
+            name={item.name_bn}
             sizes="190px"
             className="aspect-[5/7] w-[190px] rounded-xl shadow-[0_24px_50px_-28px_rgba(17,17,17,0.6)]"
           />
           <p className="bangla-safe mt-2 text-center text-sm font-semibold">
-            {item.name}
+            {item.name_bn}
           </p>
         </div>
       </Link>

@@ -4,11 +4,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart, cartSubtotal, cartCount } from "@/lib/cart";
-import { getProduct } from "@/lib/products";
-import { formatTaka, toBanglaDigits } from "@/lib/format";
+import { formatPoisha, formatUnitPoisha } from "@/lib/pricing";
+import { toBanglaDigits } from "@/lib/format";
 import { DELIVERY_INSIDE_CTG, DELIVERY_OUTSIDE_CTG } from "@/lib/site";
 
-/** Slide-out cart with the site's paper-fold entrance. */
+/** Slide-out cart with the site's paper-fold entrance. Money in poisha. */
 export default function CartDrawer() {
   const { lines, drawerOpen, closeDrawer, setQuantity, remove } = useCart();
   const subtotal = cartSubtotal(lines);
@@ -76,73 +76,76 @@ export default function CartDrawer() {
             ) : (
               <>
                 <ul className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                  {lines.map((l) => {
-                    const p = getProduct(l.slug);
-                    if (!p) return null;
-                    return (
-                      <li key={l.key} className="flex gap-3 rounded-xl border border-ink/10 p-3">
-                        <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
-                          <Image src={p.image} alt={p.name} fill sizes="56px" className="object-cover" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="bangla-safe truncate font-semibold">{p.name}</p>
-                          <p className="text-xs text-ink/60">
-                            {toBanglaDigits(l.tierQty)} পিস
-                            {l.lamination ? ` · ${l.lamination}` : ""}
+                  {lines.map((l) => (
+                    <li key={l.key} className="flex gap-3 rounded-xl border border-ink/10 p-3">
+                      <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-ink/5">
+                        {l.image && (
+                          <Image src={l.image} alt={l.name} fill sizes="56px" className="object-cover" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="bangla-safe truncate font-semibold">{l.name}</p>
+                        <p className="text-xs text-ink/60">
+                          {formatUnitPoisha(l.unitPrice)} × {toBanglaDigits(l.quantity)} পিস
+                        </p>
+                        {l.addons.length > 0 && (
+                          <p className="mt-0.5 truncate text-xs text-brand-700">
+                            {l.addons.map((a) => a.name_bn).join(", ")}
                           </p>
-                          <p className="mt-1 text-sm font-bold text-brand-700">
-                            {formatTaka(l.unitPrice)}
-                          </p>
-                          <div className="mt-2 flex items-center gap-3">
-                            <div className="flex items-center rounded-full border border-ink/20">
-                              <button
-                                type="button"
-                                aria-label="কমান"
-                                onClick={() => setQuantity(l.key, l.quantity - 1)}
-                                className="h-9 w-9 rounded-l-full hover:bg-ink/5"
-                              >
-                                −
-                              </button>
-                              <span className="w-8 text-center text-sm font-semibold">
-                                {toBanglaDigits(l.quantity)}
-                              </span>
-                              <button
-                                type="button"
-                                aria-label="বাড়ান"
-                                onClick={() => setQuantity(l.key, l.quantity + 1)}
-                                className="h-9 w-9 rounded-r-full hover:bg-ink/5"
-                              >
-                                +
-                              </button>
-                            </div>
+                        )}
+                        <p className="mt-1 text-sm font-bold text-brand-700">
+                          {formatPoisha(l.lineTotal)}
+                        </p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="flex items-center rounded-full border border-ink/20">
                             <button
                               type="button"
-                              onClick={() => remove(l.key)}
-                              className="text-sm text-ink/50 underline underline-offset-2 hover:text-[#B3261E]"
+                              aria-label={`${l.name} — পরিমাণ কমান`}
+                              onClick={() => setQuantity(l.key, l.quantity - l.step)}
+                              className="h-9 w-9 rounded-l-full hover:bg-ink/5"
                             >
-                              সরান
+                              −
+                            </button>
+                            <span className="w-14 text-center text-sm font-semibold">
+                              {toBanglaDigits(l.quantity)}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`${l.name} — পরিমাণ বাড়ান`}
+                              onClick={() => setQuantity(l.key, l.quantity + l.step)}
+                              className="h-9 w-9 rounded-r-full hover:bg-ink/5"
+                            >
+                              +
                             </button>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => remove(l.key)}
+                            className="text-sm text-ink/50 underline underline-offset-2 hover:text-[#B3261E]"
+                          >
+                            সরান
+                          </button>
                         </div>
-                      </li>
-                    );
-                  })}
+                      </div>
+                    </li>
+                  ))}
                 </ul>
 
                 <div className="border-t border-ink/10 px-5 py-4">
                   <div className="flex justify-between text-sm">
                     <span>সাবটোটাল</span>
-                    <span className="font-semibold">{formatTaka(subtotal)}</span>
+                    <span className="font-semibold">{formatPoisha(subtotal)}</span>
                   </div>
                   <div className="mt-1 flex justify-between text-sm text-ink/60">
                     <span>ডেলিভারি চার্জ</span>
                     <span>
-                      {formatTaka(DELIVERY_INSIDE_CTG)}–{formatTaka(DELIVERY_OUTSIDE_CTG)} (চেকআউটে নির্ধারিত)
+                      {formatPoisha(DELIVERY_INSIDE_CTG)}–{formatPoisha(DELIVERY_OUTSIDE_CTG)}{" "}
+                      (চেকআউটে)
                     </span>
                   </div>
                   <div className="mt-2 flex justify-between border-t border-ink/10 pt-2 text-lg font-bold">
                     <span>মোট (ডেলিভারি ছাড়া)</span>
-                    <span className="text-brand-700">{formatTaka(subtotal)}</span>
+                    <span className="text-brand-700">{formatPoisha(subtotal)}</span>
                   </div>
                   <Link
                     href="/checkout"

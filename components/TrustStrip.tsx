@@ -4,21 +4,23 @@ import { animate, motion, useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { toBanglaDigits } from "@/lib/format";
 import { useMotionPrefs } from "@/lib/useMotionPrefs";
+import type { TrustStat } from "@/lib/catalog";
 
-const stats = [
-  { value: 1200, suffix: "+", label: "অর্ডার সম্পন্ন" },
-  { value: 64, suffix: " জেলায়", label: "ডেলিভারি কাভারেজ" },
-  { value: 3, suffix: "–৫ দিনে", label: "টার্নঅ্যারাউন্ড" },
-  { value: 2, suffix: "টি ফ্রি", label: "ডিজাইন রিভিশন" },
+const FALLBACK: TrustStat[] = [
+  { value: 1200, suffix: "+", label_bn: "অর্ডার সম্পন্ন" },
+  { value: 64, suffix: " জেলায়", label_bn: "ডেলিভারি কাভারেজ" },
+  { value: 3, suffix: "–৫ দিনে", label_bn: "টার্নঅ্যারাউন্ড" },
+  { value: 2, suffix: "টি ফ্রি", label_bn: "ডিজাইন রিভিশন" },
 ];
 
 /** Trust strip: animated Bangla-numeral counters on scroll into view. */
-export default function TrustStrip() {
+export default function TrustStrip({ stats }: { stats?: TrustStat[] }) {
+  const list = stats?.length ? stats : FALLBACK;
   return (
     <section className="bg-ink py-10 text-paper md:py-12" aria-label="আস্থার পরিসংখ্যান">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-5 md:grid-cols-4">
-        {stats.map((s, i) => (
-          <Counter key={s.label} {...s} delay={i * 0.08} />
+        {list.map((s, i) => (
+          <Counter key={s.label_bn} {...s} delay={i * 0.08} />
         ))}
       </div>
     </section>
@@ -28,14 +30,9 @@ export default function TrustStrip() {
 function Counter({
   value,
   suffix,
-  label,
+  label_bn,
   delay,
-}: {
-  value: number;
-  suffix: string;
-  label: string;
-  delay: number;
-}) {
+}: TrustStat & { delay: number }) {
   const { reduced } = useMotionPrefs();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -68,7 +65,7 @@ function Counter({
         {toBanglaDigits(display)}
         <span className="text-xl md:text-2xl">{suffix}</span>
       </p>
-      <p className="mt-1 text-sm text-paper/70">{label}</p>
+      <p className="mt-1 text-sm text-paper/70">{label_bn}</p>
     </motion.div>
   );
 }

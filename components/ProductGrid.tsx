@@ -3,20 +3,20 @@
 import { useState } from "react";
 import ProductCard from "./ProductCard";
 import QuickAdd from "./QuickAdd";
-import { collections, type Collection } from "@/lib/products";
+import type { Product } from "@/lib/catalog";
 
-export default function ProductGrid() {
-  const [quickAdd, setQuickAdd] = useState<Collection | null>(null);
+export default function ProductGrid({ products }: { products: Product[] }) {
+  const [quickAdd, setQuickAdd] = useState<Product | null>(null);
 
   return (
     <>
       <div className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-8">
-        {collections.map((c, i) => (
+        {products.map((p, i) => (
           <ProductCard
-            key={c.slug}
-            item={c}
+            key={p.slug}
+            item={p}
             priority={i < 4}
-            onAdd={setQuickAdd}
+            onOrder={setQuickAdd}
           />
         ))}
         <div className="flex aspect-[5/7] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink/25 p-6 text-center">
