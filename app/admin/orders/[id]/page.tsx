@@ -8,6 +8,7 @@ import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
 import PaymentRecords, { type AdminPayment } from "@/components/admin/PaymentRecords";
 import ReceiptPanel, { type ReceiptOption } from "@/components/admin/ReceiptPanel";
 import { siteOrigin } from "@/lib/receipt/data";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -241,7 +242,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
             options={receiptOptions}
             customerPhone={order.phone}
             customerName={order.name}
-            siteOrigin={siteOrigin()}
+            siteOrigin={siteOrigin(headers())}
           />
         </div>
       </div>

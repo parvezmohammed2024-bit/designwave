@@ -12,9 +12,13 @@ const hindSiliguri = Hind_Siliguri({
 });
 
 export const metadata: Metadata = {
-  // Set NEXT_PUBLIC_SITE_URL in the deploy env so OG images resolve absolutely.
+  // Prefer an explicit canonical domain; otherwise fall back to the Vercel
+  // deployment URL rather than a domain that may not exist.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://designwave.com"
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "http://localhost:3100")
   ),
   title: "Design Wave — কাস্টম কার্ড ও প্রিন্ট স্টুডিও",
   description:

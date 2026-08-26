@@ -2,11 +2,39 @@ import "server-only";
 import { serverClient } from "@/lib/admin/server";
 import type { BuildInput } from "./build";
 
-export function siteOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "http://localhost:3100"
-  );
+/** Minimal shape shared by NextRequest.headers and next/headers. */
+type HeaderBag = { get(name: string): string | null };
+
+/**
+ * Origin to bake into the receipt QR code.
+ *
+ * A QR printed on a physical receipt must never point at localhost, so the
+ * request's own host is preferred over any build-time default. Order:
+ *   1. NEXT_PUBLIC_SITE_URL — the canonical/custom domain, if configured
+ *   2. the host that served this very request (correct on any Vercel URL)
+ *   3. Vercel's project URL, for non-request contexts
+ *   4. localhost, for local development
+ */
+export function siteOrigin(headerBag?: HeaderBag): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (explicit) return explicit;
+
+  const host =
+    headerBag?.get("x-forwarded-host") ?? headerBag?.get("host") ?? null;
+  if (host) {
+    const proto =
+      headerBag?.get("x-forwarded-proto") ??
+      (host.startsWith("localhost") || host.startsWith("127.0.0.1")
+        ? "http"
+        : "https");
+    return `${proto}://${host}`;
+  }
+
+  const vercel =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+
+  return "http://localhost:3100";
 }
 
 /**
@@ -15,7 +43,8 @@ export function siteOrigin(): string {
  * so an older receipt keeps showing the balance as it stood at the time.
  */
 export async function loadReceiptData(
-  paymentId: string
+  paymentId: string,
+  origin?: string
 ): Promise<BuildInput | { error: string }> {
   const sb = serverClient();
 
@@ -52,7 +81,7 @@ export async function loadReceiptData(
     receiptNo: receipt.receipt_no,
     revision: receipt.revision,
     issuedAt: new Date(receipt.issued_at),
-    verifyUrl: `${siteOrigin()}/receipt/${receipt.token}`,
+    verifyUrl: `${origin ?? siteOrigin()}/receipt/${receipt.token}`,
     order: {
       id: order.id,
       name: order.name,

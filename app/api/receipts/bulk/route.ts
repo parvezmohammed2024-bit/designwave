@@ -3,7 +3,7 @@ import JSZip from "jszip";
 import { requireStaffApi } from "@/lib/receipt/guard";
 import { serverClient } from "@/lib/admin/server";
 import { buildReceiptPdf, receiptFileName } from "@/lib/receipt/build";
-import { loadReceiptData } from "@/lib/receipt/data";
+import { loadReceiptData, siteOrigin } from "@/lib/receipt/data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,9 +44,10 @@ export async function GET(request: NextRequest) {
 
   const zip = new JSZip();
   const failed: string[] = [];
+  const origin = siteOrigin(request.headers);
 
   for (const r of receipts) {
-    const data = await loadReceiptData(r.payment_id);
+    const data = await loadReceiptData(r.payment_id, origin);
     if ("error" in data) {
       failed.push(r.receipt_no);
       continue;

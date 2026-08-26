@@ -6,7 +6,7 @@ import {
   contentDisposition,
   receiptFileName,
 } from "@/lib/receipt/build";
-import { loadReceiptData } from "@/lib/receipt/data";
+import { loadReceiptData, siteOrigin } from "@/lib/receipt/data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,8 +22,12 @@ export async function GET(
   const denied = await requireStaffApi();
   if (denied) return denied;
 
+  // Build the QR against the host serving this request, so a printed
+  // receipt never carries a localhost link.
+  const origin = siteOrigin(request.headers);
+
   // Issue on first request so the caller never needs a separate step.
-  let data = await loadReceiptData(params.paymentId);
+  let data = await loadReceiptData(params.paymentId, origin);
   if ("error" in data) {
     const sb = serverClient();
     const { error } = await sb.rpc("dw_issue_receipt", {
@@ -32,7 +36,7 @@ export async function GET(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    data = await loadReceiptData(params.paymentId);
+    data = await loadReceiptData(params.paymentId, origin);
   }
   if ("error" in data) {
     return NextResponse.json({ error: data.error }, { status: 404 });
