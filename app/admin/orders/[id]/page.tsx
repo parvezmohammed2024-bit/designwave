@@ -5,6 +5,7 @@ import { tk, fmtDateTime } from "@/lib/admin/money";
 import { STATUS_LABEL, STATUS_TONE, type OrderStatus } from "@/lib/admin/orders";
 import OrderControls from "@/components/admin/OrderControls";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
+import PaymentRecords, { type AdminPayment } from "@/components/admin/PaymentRecords";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   await requireStaff();
   const sb = serverClient();
 
-  const [{ data: order }, { data: payments }, { data: templates }, { data: paySettings }] =
+  const [{ data: order }, { data: payments }, { data: tplRow }, { data: paySettings }] =
     await Promise.all([
       sb.from("dw_orders").select("*").eq("id", params.id.toUpperCase()).maybeSingle(),
       sb.from("dw_payments").select("*").eq("order_id", params.id.toUpperCase()).order("received_at"),
@@ -31,9 +32,38 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   if (!order) notFound();
 
   const items: Item[] = Array.isArray(order.items) ? order.items : [];
-  const paid = (payments ?? []).reduce((s, p) => s + p.amount, 0);
+  const payList = (payments ?? []) as AdminPayment[];
+
+  // only verified money counts toward the balance
+  const paid = payList
+    .filter((p) => p.verification_status === "verified")
+    .reduce((s, p) => s + (p.amount ?? 0), 0);
+  const awaiting = payList.filter((p) => p.verification_status === "pending").length;
   const outstanding = (order.total_poisha ?? 0) - paid;
   const files: string[] = Array.isArray(order.design_files) ? order.design_files : [];
+
+  // flag transaction IDs that also appear on a different order
+  const txns = payList.map((p) => p.txn_id).filter(Boolean) as string[];
+  let duplicateTxns: string[] = [];
+  if (txns.length) {
+    const { data: clashes } = await sb
+      .from("dw_payments")
+      .select("txn_id,order_id")
+      .in("txn_id", txns);
+    duplicateTxns = Array.from(
+      new Set(
+        (clashes ?? [])
+          .filter((c) => c.order_id !== order.id)
+          .map((c) => c.txn_id as string)
+      )
+    );
+  }
+
+  const templates =
+    (tplRow?.value as { key: string; label: string; body_bn: string }[]) ?? [];
+  const rejectTemplate =
+    templates.find((t) => t.key === "payment_rejected")?.body_bn ??
+    "{{name}}, আপনার {{order_id}} অর্ডারের পেমেন্টটি যাচাই করা যায়নি — {{reason}}। অনুগ্রহ করে সঠিক তথ্য দিন।";
 
   return (
     <div>
@@ -109,6 +139,15 @@ export default async function OrderDetail({ params }: { params: { id: string } }
             </dl>
           </section>
 
+          <PaymentRecords
+            orderId={order.id}
+            payments={payList}
+            duplicateTxns={duplicateTxns}
+            customerPhone={order.phone}
+            customerName={order.name}
+            rejectTemplate={rejectTemplate}
+          />
+
           {/* design files */}
           <section className="rounded-2xl border border-ink/10 bg-white p-4">
             <h2 className="font-bold">Design files</h2>
@@ -132,22 +171,24 @@ export default async function OrderDetail({ params }: { params: { id: string } }
         {/* right rail */}
         <div className="space-y-4">
           <section className="rounded-2xl border border-ink/10 bg-white p-4">
-            <h2 className="font-bold">Payments</h2>
+            <h2 className="font-bold">Balance</h2>
             <dl className="mt-2 space-y-1 text-sm">
-              <div className="flex justify-between"><dt>Received</dt><dd className="font-semibold text-emerald-700">{tk(paid)}</dd></div>
-              <div className="flex justify-between"><dt>Outstanding</dt><dd className={`font-semibold ${outstanding > 0 ? "text-amber-700" : "text-emerald-700"}`}>{tk(outstanding)}</dd></div>
+              <div className="flex justify-between">
+                <dt>Verified received</dt>
+                <dd className="font-semibold text-emerald-700">{tk(paid)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Outstanding</dt>
+                <dd className={`font-semibold ${outstanding > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+                  {tk(outstanding)}
+                </dd>
+              </div>
             </dl>
-            {(payments ?? []).length > 0 && (
-              <ul className="mt-3 space-y-2 border-t border-ink/10 pt-3 text-xs">
-                {payments!.map((p) => (
-                  <li key={p.id}>
-                    <span className="font-semibold">{tk(p.amount)}</span> · {p.kind}
-                    {p.txn_id && <> · <span dir="ltr">{p.txn_id}</span></>}
-                    <br />
-                    <span className="text-ink/45">{fmtDateTime(p.received_at)}</span>
-                  </li>
-                ))}
-              </ul>
+            {awaiting > 0 && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                {awaiting} payment{awaiting > 1 ? "s" : ""} awaiting your verification —
+                not counted above.
+              </p>
             )}
           </section>
 
@@ -163,7 +204,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           />
 
           <WhatsAppTemplates
-            templates={(templates?.value as { key: string; label: string; body_bn: string }[]) ?? []}
+            templates={templates}
             phone={order.phone}
             vars={{
               name: order.name,

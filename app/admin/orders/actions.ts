@@ -46,6 +46,7 @@ export async function recordPayment(
     data: { user },
   } = await sb.auth.getUser();
 
+  // staff entering a payment by hand have already confirmed it
   const { error } = await sb.from("dw_payments").insert({
     order_id: orderId,
     kind,
@@ -53,6 +54,10 @@ export async function recordPayment(
     txn_id: txnId || null,
     method: method || null,
     recorded_by: user?.id ?? null,
+    source: "staff",
+    verification_status: "verified",
+    verified_by: user?.id ?? null,
+    verified_at: new Date().toISOString(),
   });
   if (error) return { error: error.message };
 
@@ -121,6 +126,90 @@ export async function signDesignFile(path: string) {
   const { data, error } = await sb.storage
     .from("dw-designs")
     .createSignedUrl(path, 60 * 10);
+  if (error || !data) return { error: error?.message ?? "Could not sign URL" };
+  return { url: data.signedUrl };
+}
+
+/** Approve a customer-submitted payment, optionally correcting the amount. */
+export async function verifyPayment(
+  paymentId: string,
+  orderId: string,
+  amountPoisha: number
+) {
+  await requireStaff();
+  if (amountPoisha <= 0) return { error: "Enter the amount you actually received" };
+  const sb = serverClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+
+  const { data: payment, error } = await sb
+    .from("dw_payments")
+    .update({
+      verification_status: "verified",
+      amount: amountPoisha,
+      verified_by: user?.id ?? null,
+      verified_at: new Date().toISOString(),
+      rejection_reason: null,
+    })
+    .eq("id", paymentId)
+    .select("kind")
+    .single();
+  if (error) return { error: error.message };
+
+  // a verified stage payment advances the order
+  const auto: Record<string, string> = {
+    design_charge: "design_charge_paid",
+    advance: "advance_paid",
+  };
+  const next = auto[payment.kind];
+  if (next) {
+    await sb
+      .from("dw_orders")
+      .update({ status: next, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+  }
+
+  await logActivity(`payment verified ${amountPoisha}`, "order", orderId);
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { ok: true };
+}
+
+export async function rejectPayment(
+  paymentId: string,
+  orderId: string,
+  reason: string
+) {
+  await requireStaff();
+  if (!reason.trim()) return { error: "Give a reason — the customer sees this" };
+  const sb = serverClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+
+  const { error } = await sb
+    .from("dw_payments")
+    .update({
+      verification_status: "rejected",
+      rejection_reason: reason.trim(),
+      verified_by: user?.id ?? null,
+      verified_at: new Date().toISOString(),
+    })
+    .eq("id", paymentId);
+  if (error) return { error: error.message };
+
+  await logActivity("payment rejected", "order", orderId, { reason });
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { ok: true };
+}
+
+/** Short-lived signed URL for viewing a receipt in the admin lightbox. */
+export async function signReceipt(path: string) {
+  await requireStaff();
+  const sb = serverClient();
+  const { data, error } = await sb.storage
+    .from("dw-receipts")
+    .createSignedUrl(path, 60 * 5);
   if (error || !data) return { error: error?.message ?? "Could not sign URL" };
   return { url: data.signedUrl };
 }

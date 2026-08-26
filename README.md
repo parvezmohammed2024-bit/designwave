@@ -165,6 +165,35 @@ values. Rule: use `700`+ shades for text on light backgrounds (WCAG AA);
 
 ---
 
+## Payment receipts
+
+At checkout and again from the tracking page, a customer can prove a payment by
+giving **a transaction ID, a bKash/Nagad screenshot, or both** — at least one is
+required, enforced in the UI and again inside `dw_submit_payment`.
+
+- Images are re-encoded to WebP at ≤1600px in the browser before upload. Android
+  screenshots are commonly 4–8MB and customers are on mobile data. Canvas
+  re-encoding also **strips all EXIF** (GPS, device, timestamp) as a side effect —
+  there is no separate scrubbing step. PDFs pass through untouched.
+- Files land in the **private** `dw-receipts` bucket at
+  `receipts/<ORDER_ID>/<stage>-<time>-<rand>`. The RPC rejects any path that
+  doesn't sit under the order it claims to belong to.
+- Anonymous users can **write but never read** that bucket. Staff read via
+  5-minute signed URLs. Customers see their payment *records* (amount, stage,
+  transaction ID, status, whether a receipt is attached) through
+  `dw_order_payments`, which requires the order ID **and** the matching phone.
+- Each staged payment is its **own row** — design charge, 50% advance and balance
+  never overwrite one another.
+- Admin verifies or rejects per record, correcting the amount on approval. Only
+  **verified** money counts toward the balance. A rejection captures a reason the
+  customer sees, with a WhatsApp template to tell them. Transaction IDs reused
+  across different orders are flagged before approval.
+
+> Customers cannot re-download their own receipt image — only its metadata. That
+> keeps the bucket strictly write-only for anonymous users. Enabling it would mean
+> putting a service-role key in the server environment; it was not worth the blast
+> radius for a file the customer already has on their phone.
+
 ## Order flow
 
 1. **Design charge ৳200** — if the customer needs Design Wave to create the design

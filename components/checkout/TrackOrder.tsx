@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { toBanglaDigits } from "@/lib/format";
 import { formatPoisha } from "@/lib/pricing";
 import { PHONE_BN, waLink } from "@/lib/site";
+import SubmitPayment, { type PaymentRecord } from "./SubmitPayment";
 
 const STATUS_STEPS: { key: string; label: string }[] = [
   { key: "payment_pending", label: "পেমেন্ট যাচাই" },
@@ -41,7 +42,16 @@ export default function TrackOrder() {
   const [orderId, setOrderId] = useState(params.get("id") ?? "");
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "notfound" | "error">("idle");
+
+  const loadPayments = async (id: string, ph: string) => {
+    const { data } = await supabase.rpc("dw_order_payments", {
+      p_id: id,
+      p_phone: ph,
+    });
+    setPayments((data ?? []) as PaymentRecord[]);
+  };
 
   const search = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,6 +65,7 @@ export default function TrackOrder() {
     if (error) return setState("error");
     if (!data || data.length === 0) return setState("notfound");
     setOrder(data[0] as Order);
+    await loadPayments(orderId, phone);
     setState("idle");
   };
 
@@ -158,6 +169,15 @@ export default function TrackOrder() {
             প্রশ্ন থাকলে: {PHONE_BN}
           </p>
         </motion.div>
+      )}
+
+      {order && (
+        <SubmitPayment
+          orderId={order.id}
+          phone={phone.trim()}
+          payments={payments}
+          onSubmitted={() => loadPayments(order.id, phone.trim())}
+        />
       )}
     </div>
   );

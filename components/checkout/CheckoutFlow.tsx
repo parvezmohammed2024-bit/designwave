@@ -10,6 +10,7 @@ import { toBanglaDigits } from "@/lib/format";
 import { PHONE_BN, waLink } from "@/lib/site";
 import type { DeliverySettings, PaymentSettings } from "@/lib/catalog";
 import { supabase } from "@/lib/supabase";
+import ReceiptUpload, { type ReceiptState } from "@/components/ReceiptUpload";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const STEPS = ["তথ্য", "ডিজাইন ফাইল", "পেমেন্ট", "নিশ্চিতকরণ"];
@@ -68,6 +69,8 @@ export default function CheckoutFlow({
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [designFinalized, setDesignFinalized] = useState(false);
   const [txnId, setTxnId] = useState("");
+  const [receipt, setReceipt] = useState<ReceiptState | null>(null);
+  const [payError, setPayError] = useState("");
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -130,6 +133,14 @@ export default function CheckoutFlow({
   };
 
   const placeOrder = async () => {
+    // one proof of payment is enough — either reference works
+    if (!txnId.trim() && !receipt) {
+      setPayError(
+        "ট্রানজেকশন আইডি অথবা পেমেন্টের স্ক্রিনশট — যেকোনো একটি দিন।"
+      );
+      return;
+    }
+    setPayError("");
     setSubmitting(true);
     setSubmitError("");
     const items = lines.map((l) => ({
@@ -158,6 +169,7 @@ export default function CheckoutFlow({
         design_finalized: designFinalized,
         design_files: files.filter((f) => f.status === "done").map((f) => f.path),
         txn_id: txnId.trim(),
+        receipt_path: receipt?.path ?? "",
       },
     });
 
@@ -417,13 +429,37 @@ export default function CheckoutFlow({
 
               <div>
                 <label htmlFor="co-txn" className={label}>
-                  ট্রানজেকশন আইডি <span className="font-normal text-ink/50">(পেমেন্ট করে থাকলে)</span>
+                  ট্রানজেকশন আইডি
                 </label>
                 <input id="co-txn" type="text" dir="ltr" className={field}
                   placeholder="যেমন: 9HK7A2B5CD" value={txnId}
-                  onChange={(e) => setTxnId(e.target.value)} />
+                  onChange={(e) => {
+                    setTxnId(e.target.value);
+                    if (e.target.value.trim()) setPayError("");
+                  }} />
               </div>
 
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-ink/10" />
+                <span className="text-xs font-semibold text-ink/45">অথবা</span>
+                <span className="h-px flex-1 bg-ink/10" />
+              </div>
+
+              <ReceiptUpload
+                orderId={orderId}
+                stage={designFinalized ? "advance" : "design-charge"}
+                value={receipt}
+                onChange={(r) => {
+                  setReceipt(r);
+                  if (r) setPayError("");
+                }}
+              />
+
+              {payError && (
+                <p className="rounded-xl border border-[#B3261E]/30 bg-[#B3261E]/5 px-4 py-3 text-sm font-semibold text-[#B3261E]">
+                  {payError}
+                </p>
+              )}
               {submitError && <p className={errText}>{submitError}</p>}
 
               <div className="flex gap-3">

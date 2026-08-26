@@ -109,16 +109,26 @@ create table if not exists public.dw_orders (
   updated_at timestamptz not null default now()
 );
 
+-- One row per staged payment. Records never overwrite one another.
 create table if not exists public.dw_payments (
   id uuid primary key default gen_random_uuid(),
   order_id text not null references public.dw_orders(id) on delete cascade,
   kind text not null check (kind in ('design_charge','advance','balance')),
-  amount integer not null,
+  amount integer,                                   -- null until staff verify
   txn_id text, method text, note text,
+  receipt_path text,                                -- private dw-receipts object
+  verification_status text not null default 'pending'
+    check (verification_status in ('pending','verified','rejected')),
+  rejection_reason text,
+  source text not null default 'staff' check (source in ('customer','staff')),
+  verified_by uuid references auth.users(id),
+  verified_at timestamptz,
   received_at timestamptz not null default now(),
   recorded_by uuid references auth.users(id)
 );
 create index if not exists dw_payments_order on public.dw_payments(order_id);
+create index if not exists dw_payments_txn on public.dw_payments(txn_id)
+  where txn_id is not null;
 
 -- ---------- quotations ----------
 create table if not exists public.dw_quotations (
@@ -229,9 +239,12 @@ create policy "orders_staff_write" on public.dw_orders
 create or replace function public.dw_place_order(payload jsonb)
 returns text language plpgsql security definer set search_path = public as $$
 declare
-  v_phone text := trim(payload->>'phone');
-  v_id    text := upper(trim(payload->>'id'));
-  v_cust  uuid;
+  v_phone   text := trim(payload->>'phone');
+  v_id      text := upper(trim(payload->>'id'));
+  v_cust    uuid;
+  v_txn     text := nullif(trim(payload->>'txn_id'), '');
+  v_receipt text := nullif(trim(payload->>'receipt_path'), '');
+  v_kind    text;
 begin
   if v_phone !~ '^01[3-9][0-9]{8}$' then raise exception 'invalid phone'; end if;
   if v_id !~ '^DW-[A-Z0-9]{4,12}$' then raise exception 'invalid order id'; end if;
@@ -262,8 +275,19 @@ begin
     round((payload->>'total')::int / 100.0), round((payload->>'amount_due')::int / 100.0),
     coalesce((payload->>'design_finalized')::boolean, false),
     coalesce(payload->'design_files', '[]'::jsonb),
-    nullif(payload->>'txn_id',''), 'payment_pending'
+    v_txn, 'payment_pending'
   );
+
+  -- the first payment claim becomes its own record
+  if v_txn is not null or v_receipt is not null then
+    if coalesce((payload->>'design_finalized')::boolean, false)
+      then v_kind := 'advance'; else v_kind := 'design_charge'; end if;
+    insert into public.dw_payments
+      (order_id, kind, amount, txn_id, receipt_path, verification_status, source)
+    values (v_id, v_kind, (payload->>'amount_due')::int, v_txn, v_receipt,
+            'pending', 'customer');
+  end if;
+
   return v_id;
 end; $$;
 grant execute on function public.dw_place_order to anon, authenticated;
@@ -280,6 +304,53 @@ returns table (
   where id = upper(trim(p_id)) and phone = trim(p_phone);
 $$;
 grant execute on function public.dw_track_order to anon;
+
+-- Submit a payment claim (checkout, or later from /track).
+-- Order id + phone act as the shared secret; a receipt must live under the
+-- folder of the order it claims to belong to.
+create or replace function public.dw_submit_payment(payload jsonb)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  v_order   text := upper(trim(payload->>'order_id'));
+  v_phone   text := trim(payload->>'phone');
+  v_kind    text := payload->>'kind';
+  v_txn     text := nullif(trim(payload->>'txn_id'), '');
+  v_receipt text := nullif(trim(payload->>'receipt_path'), '');
+  v_amount  int  := nullif(payload->>'amount', '')::int;
+  v_id      uuid;
+begin
+  if not exists (select 1 from public.dw_orders where id = v_order and phone = v_phone)
+    then raise exception 'order not found'; end if;
+  if v_txn is null and v_receipt is null
+    then raise exception 'transaction id or receipt required'; end if;
+  if v_kind not in ('design_charge','advance','balance')
+    then raise exception 'invalid payment stage'; end if;
+  if v_receipt is not null and v_receipt not like 'receipts/' || v_order || '/%'
+    then raise exception 'receipt path does not belong to this order'; end if;
+
+  insert into public.dw_payments
+    (order_id, kind, amount, txn_id, receipt_path, method, verification_status, source)
+  values
+    (v_order, v_kind, v_amount, v_txn, v_receipt, payload->>'method', 'pending', 'customer')
+  returning id into v_id;
+  return v_id;
+end; $$;
+grant execute on function public.dw_submit_payment to anon, authenticated;
+
+-- Payment records for the tracking page. Metadata only — never the file.
+create or replace function public.dw_order_payments(p_id text, p_phone text)
+returns table (
+  id uuid, kind text, amount integer, txn_id text,
+  has_receipt boolean, verification_status text, rejection_reason text,
+  received_at timestamptz
+) language sql security definer stable set search_path = public as $$
+  select p.id, p.kind, p.amount, p.txn_id, p.receipt_path is not null,
+         p.verification_status, p.rejection_reason, p.received_at
+  from dw_payments p join dw_orders o on o.id = p.order_id
+  where o.id = upper(trim(p_id)) and o.phone = trim(p_phone)
+  order by p.received_at;
+$$;
+grant execute on function public.dw_order_payments to anon, authenticated;
 
 -- Read a shared quotation link.
 create or replace function public.dw_get_quotation(p_id text)
@@ -300,6 +371,18 @@ on conflict (id) do nothing;
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('dw-public', 'dw-public', true, 10485760)
 on conflict (id) do nothing;
+
+-- payment receipts: private, write-only for customers
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('dw-receipts', 'dw-receipts', false, 10485760)
+on conflict (id) do nothing;
+
+create policy "dw_receipts_upload_anon" on storage.objects
+  for insert to anon, authenticated with check (bucket_id = 'dw-receipts');
+create policy "dw_receipts_staff_read" on storage.objects
+  for select to authenticated using (bucket_id = 'dw-receipts' and public.dw_is_staff());
+create policy "dw_receipts_staff_delete" on storage.objects
+  for delete to authenticated using (bucket_id = 'dw-receipts' and public.dw_is_staff());
 
 -- customers upload design files but cannot read them back
 create policy "dw_designs_upload_anon" on storage.objects
