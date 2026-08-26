@@ -1,5 +1,6 @@
 import { requireStaff, serverClient } from "@/lib/admin/server";
 import { tk } from "@/lib/admin/money";
+import ReceiptBulkExport from "@/components/admin/ReceiptBulkExport";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,10 @@ export default async function ReportsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Reports</h1>
+
+      <div className="mt-4">
+        <ReceiptBulkExport />
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card l="Average order value" v={tk(aov)} s={`${live.length} live orders`} />

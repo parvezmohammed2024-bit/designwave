@@ -10,6 +10,13 @@ const nextConfig = {
       ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
       : [],
   },
+  experimental: {
+    // The PDF receipt reads these at runtime; tracing can't infer them
+    // from dynamic path.join calls, so include them explicitly.
+    outputFileTracingIncludes: {
+      "/api/receipts/**": ["./assets/fonts/**", "./public/logo.svg"],
+    },
+  },
 };
 
 export default nextConfig;

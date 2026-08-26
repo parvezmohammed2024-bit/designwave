@@ -194,6 +194,45 @@ required, enforced in the UI and again inside `dw_submit_payment`.
 > putting a service-role key in the server environment; it was not worth the blast
 > radius for a file the customer already has on their phone.
 
+## PDF money receipts
+
+Once a payment is verified, the admin order page can issue a print-ready
+**মানি রিসিট / MONEY RECEIPT** (A4, one page). Buttons sit under the WhatsApp
+templates: download, preview in a modal, and send. If an order has several
+verified payments a selector picks which one.
+
+- Generated **server-side** at `/api/receipts/<paymentId>` with
+  `@react-pdf/renderer`. Text is real and selectable, not a rasterised image.
+- **Bangla renders correctly.** Hind Siliguri is embedded (subset) from
+  `assets/fonts/`, and fontkit applies the Indic shaper, so conjuncts —
+  রসিদ, পরিশোধিত, ট্রানজেকশন, অ্যাডভান্স, স্বাক্ষর, নয়শত পঁচাত্তর — come out
+  properly formed. This was verified by rendering the PDF and inspecting the
+  glyphs, not assumed.
+- Amounts are written out in words by `lib/receipt/banglaWords.ts`
+  (৯৭৫ → *নয়শত পঁচাত্তর টাকা মাত্র*), which is what makes a receipt read as
+  legitimate locally.
+- The ledger shows মোট মূল্য / পরিশোধিত / বাকি, counting only **verified**
+  payments up to that receipt's own date — so an old receipt keeps showing the
+  balance as it stood then. A fully-settled order gets a diagonal
+  **সম্পূর্ণ পরিশোধিত · PAID IN FULL** stamp.
+- A QR code links to `/receipt/<token>`, a public page anyone can use to check
+  the receipt is real. Tokens are random 128-bit hex, so a receipt number alone
+  reveals nothing.
+- Brand colours come from `lib/receipt/theme.ts` only — never hardcoded.
+- **Re-issuing:** correcting order details keeps the same receipt number and
+  bumps a revision counter, logged in `dw_receipt_revisions`. A receipt number
+  that changes is useless for bookkeeping.
+- **Bulk export:** Reports → *Receipts export* zips every receipt in a date
+  range (`/api/receipts/bulk`), capped at 200 per request.
+
+> Two honest limitations. **Copy-pasting Bangla out of the PDF gives reordered
+> text** — PDF stores shaped glyphs in visual order and @react-pdf emits no
+> `ActualText` spans. Printing and on-screen reading are correct; only text
+> extraction is affected. And there is **no server-side PNG**: rasterising a PDF
+> needs a native renderer that does not deploy cleanly on Vercel, so the admin
+> downloads the PDF and attaches it in WhatsApp, which the UI says plainly
+> (wa.me links cannot carry attachments anyway).
+
 ## Order flow
 
 1. **Design charge ৳200** — if the customer needs Design Wave to create the design

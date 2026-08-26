@@ -6,6 +6,8 @@ import { STATUS_LABEL, STATUS_TONE, type OrderStatus } from "@/lib/admin/orders"
 import OrderControls from "@/components/admin/OrderControls";
 import WhatsAppTemplates from "@/components/admin/WhatsAppTemplates";
 import PaymentRecords, { type AdminPayment } from "@/components/admin/PaymentRecords";
+import ReceiptPanel, { type ReceiptOption } from "@/components/admin/ReceiptPanel";
+import { siteOrigin } from "@/lib/receipt/data";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,25 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       )
     );
   }
+
+  // receipts exist only for verified payments
+  const verified = payList.filter((p) => p.verification_status === "verified");
+  const { data: issued } = await sb
+    .from("dw_receipts")
+    .select("payment_id, receipt_no, token, revision")
+    .eq("order_id", order.id);
+
+  const receiptOptions: ReceiptOption[] = verified.map((p) => {
+    const rec = (issued ?? []).find((r) => r.payment_id === p.id);
+    return {
+      paymentId: p.id,
+      kind: p.kind,
+      amount: p.amount ?? 0,
+      receiptNo: rec?.receipt_no ?? null,
+      token: rec?.token ?? null,
+      revision: rec?.revision ?? 1,
+    };
+  });
 
   const templates =
     (tplRow?.value as { key: string; label: string; body_bn: string }[]) ?? [];
@@ -213,6 +234,14 @@ export default async function OrderDetail({ params }: { params: { id: string } }
               payment_number:
                 (paySettings?.value as { bkash?: string })?.bkash ?? "01836-065919",
             }}
+          />
+
+          <ReceiptPanel
+            orderId={order.id}
+            options={receiptOptions}
+            customerPhone={order.phone}
+            customerName={order.name}
+            siteOrigin={siteOrigin()}
           />
         </div>
       </div>
