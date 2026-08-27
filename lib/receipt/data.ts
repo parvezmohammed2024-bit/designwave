@@ -93,6 +93,7 @@ export async function loadReceiptData(
       total: order.total_poisha ?? 0,
       items: items.map((it) => ({
         name: String(it.name ?? ""),
+        tier: it.tier ?? null,
         quantity: Number(it.quantity ?? 0),
         unitPrice: Number(it.unitPrice ?? 0),
         lineTotal: Number(it.lineTotal ?? 0),

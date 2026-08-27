@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 type Item = {
   name: string;
+  tier?: string | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -140,6 +141,11 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                     <tr key={i} className="border-t border-ink/10">
                       <td className="py-2">
                         {it.name}
+                        {it.tier && (
+                          <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">
+                            {it.tier}
+                          </span>
+                        )}
                         {it.addons && it.addons.length > 0 && (
                           <span className="block text-xs text-brand-700">
                             + {it.addons.map((a) => a.name_bn).join(", ")}

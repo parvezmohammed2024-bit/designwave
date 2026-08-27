@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
-import type { Product } from "@/lib/catalog";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import { defaultTier, imagesFor, type Product } from "@/lib/catalog";
 import QuantityPricer from "./QuantityPricer";
-import CardFace from "./CardFace";
+import TierSelector from "./TierSelector";
+import CardArt from "./CardArt";
 
-/** Quick-order modal: quantity + add-ons, straight from the grid. */
+/** Quick-order modal: tier + quantity + add-ons, straight from the grid. */
 export default function QuickAdd({
   product,
   onClose,
@@ -14,11 +16,21 @@ export default function QuickAdd({
   product: Product | null;
   onClose: () => void;
 }) {
+  const [tierId, setTierId] = useState<string | null>(null);
+
+  // reset to the product's default tier each time the modal opens
+  useEffect(() => {
+    setTierId(product ? (defaultTier(product)?.id ?? null) : null);
+  }, [product]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const tier = product?.tiers.find((t) => t.id === tierId) ?? null;
+  const cover = product ? imagesFor(product, tierId)[0] : null;
 
   return (
     <AnimatePresence>
@@ -43,15 +55,18 @@ export default function QuickAdd({
             style={{ transformPerspective: 900 }}
           >
             <div className="flex items-start gap-3">
-              <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
-                <CardFace
-                  image={product.image}
-                  blur={product.blur_data_url}
-                  hue={product.hue}
-                  name={product.name_bn}
-                  sizes="56px"
-                  className="h-full w-full"
-                />
+              <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-ink/5">
+                {cover ? (
+                  <Image
+                    src={cover.url}
+                    alt={cover.alt_bn ?? product.name_bn}
+                    fill
+                    sizes="56px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <CardArt hue={product.hue} label={product.name_bn} className="h-full w-full" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="bangla-safe text-lg font-bold">{product.name_bn}</h2>
@@ -69,8 +84,25 @@ export default function QuickAdd({
               </button>
             </div>
 
+            {product.tiers.length > 1 && (
+              <div className="mt-5">
+                <TierSelector
+                  tiers={product.tiers}
+                  selectedId={tierId}
+                  onSelect={setTierId}
+                  baseUnitPrice={product.base_unit_price}
+                  compact
+                />
+              </div>
+            )}
+
             <div className="mt-5">
-              <QuantityPricer product={product} compact onAdded={onClose} />
+              <QuantityPricer
+                product={product}
+                tier={tier}
+                compact
+                onAdded={onClose}
+              />
             </div>
           </motion.div>
         </motion.div>

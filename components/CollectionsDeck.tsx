@@ -63,7 +63,7 @@ export default function CollectionsDeck({
                 >
                   <div className="relative aspect-[4/3] overflow-hidden">
                     <CardFace
-                      image={cover.image}
+                      image={cover.images[0]?.url ?? cover.image}
                       blur={cover.blur_data_url}
                       hue={cover.hue}
                       name={cover.name_bn}
@@ -160,7 +160,7 @@ function DealtCard({
       <Link href={`/collections/${item.slug}`} className="group block">
         <div className="-ml-[95px] transition-transform duration-300 ease-paper group-hover:-translate-y-3">
           <CardFace
-            image={item.image}
+            image={item.images[0]?.url ?? item.image}
             blur={item.blur_data_url}
             hue={item.hue}
             name={item.name_bn}

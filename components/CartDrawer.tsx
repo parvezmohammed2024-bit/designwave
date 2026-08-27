@@ -88,6 +88,11 @@ export default function CartDrawer() {
                         <p className="text-xs text-ink/60">
                           {formatUnitPoisha(l.unitPrice)} × {toBanglaDigits(l.quantity)} পিস
                         </p>
+                        {l.tierName && (
+                          <span className="mt-0.5 inline-block rounded-full bg-brand-700/10 px-2 py-0.5 text-[11px] font-bold text-brand-700">
+                            {l.tierName}
+                          </span>
+                        )}
                         {l.addons.length > 0 && (
                           <p className="mt-0.5 truncate text-xs text-brand-700">
                             {l.addons.map((a) => a.name_bn).join(", ")}

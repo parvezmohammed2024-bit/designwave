@@ -2,7 +2,8 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import type { Product } from "@/lib/catalog";
+import type { Product, ProductTier } from "@/lib/catalog";
+import { slabsFor } from "@/lib/catalog";
 import {
   formatPoisha,
   formatUnitPoisha,
@@ -17,15 +18,18 @@ import { useCart } from "@/lib/cart";
 import { useToast } from "@/lib/toast";
 
 /**
- * Quantity stepper + live slab pricing. Used full-size on the product
- * page and compact inside the quick-order modal.
+ * Quantity stepper + live slab pricing for the selected tier.
+ * Used full-size on the product page and compact inside the quick-order modal.
  */
 export default function QuantityPricer({
   product,
+  tier,
   compact = false,
   onAdded,
 }: {
   product: Product;
+  /** null when the product has no tiers */
+  tier: ProductTier | null;
   compact?: boolean;
   onAdded?: () => void;
 }) {
@@ -40,13 +44,18 @@ export default function QuantityPricer({
   const openDrawer = useCart((s) => s.openDrawer);
   const show = useToast((s) => s.show);
 
+  const slabs = useMemo(
+    () => slabsFor(product, tier?.id ?? null),
+    [product, tier?.id]
+  );
+
   const breakdown = useMemo(
-    () => priceFor(product.slabs, qty, chosen, product.base_unit_price),
-    [product.slabs, product.base_unit_price, qty, chosen]
+    () => priceFor(slabs, qty, chosen, product.base_unit_price),
+    [slabs, product.base_unit_price, qty, chosen]
   );
   const nudge = useMemo(
-    () => nextSlabNudge(product.slabs, qty, 10, product.step_quantity),
-    [product.slabs, qty, product.step_quantity]
+    () => nextSlabNudge(slabs, qty, 10, product.step_quantity),
+    [slabs, qty, product.step_quantity]
   );
 
   useEffect(() => setRaw(String(qty)), [qty]);
@@ -87,21 +96,29 @@ export default function QuantityPricer({
       setError(`সর্বনিম্ন ${toBanglaDigits(product.moq)} পিস অর্ডার করতে হবে`);
       return;
     }
+    // a tiered product must have a tier picked before it can be added
+    if (product.tiers.length > 0 && !tier) {
+      setError("প্রথমে মান (নরমাল / প্রিমিয়াম) বাছাই করুন");
+      return;
+    }
     setBusy(true);
-    // brief pause so the loading state is perceivable, then commit
     await new Promise((r) => setTimeout(r, 260));
     add({
       slug: product.slug,
       name: product.name_bn,
-      image: product.image,
+      image: product.images[0]?.url ?? product.image,
+      tierId: tier?.id ?? null,
+      tierName: tier?.name_bn ?? null,
       quantity: qty,
       moq: product.moq,
       step: product.step_quantity,
-      slabs: product.slabs,
+      slabs,
       addons: chosen,
     });
     setBusy(false);
-    show(`${product.name_bn} — ${toBanglaDigits(qty)} পিস কার্টে যোগ হয়েছে`);
+    show(
+      `${product.name_bn}${tier ? ` (${tier.name_bn})` : ""} — ${toBanglaDigits(qty)} পিস কার্টে যোগ হয়েছে`
+    );
     openDrawer();
     onAdded?.();
   };
@@ -143,7 +160,8 @@ export default function QuantityPricer({
           </button>
         </div>
         <p className="text-sm text-ink/55">
-          সর্বনিম্ন {toBanglaDigits(product.moq)} · ধাপ {toBanglaDigits(product.step_quantity)}
+          সর্বনিম্ন {toBanglaDigits(product.moq)} · ধাপ{" "}
+          {toBanglaDigits(product.step_quantity)}
         </p>
       </div>
       {error && <p className="mt-2 text-sm text-[#B3261E]">{error}</p>}
@@ -153,14 +171,21 @@ export default function QuantityPricer({
         <div className="flex items-baseline justify-between">
           <span id={`slab-${product.slug}`} className="text-sm text-ink/70">
             প্রতি পিস{" "}
-            <strong className="text-ink">{formatUnitPoisha(breakdown.unitPrice)}</strong>
+            <strong className="text-ink">
+              {formatUnitPoisha(breakdown.unitPrice)}
+            </strong>
             {breakdown.slab && (
               <span className="ml-1 text-ink/50">({slabLabel(breakdown.slab)})</span>
             )}
           </span>
+          {tier && (
+            <span className="rounded-full bg-brand-700/10 px-2 py-0.5 text-xs font-bold text-brand-700">
+              {tier.name_bn}
+            </span>
+          )}
         </div>
         <motion.p
-          key={breakdown.total}
+          key={`${tier?.id ?? "none"}-${breakdown.total}`}
           initial={reduced ? false : { opacity: 0.4, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
@@ -220,11 +245,19 @@ export default function QuantityPricer({
         </fieldset>
       )}
 
-      {/* slab table */}
-      {!compact && product.slabs.length > 0 && (
+      {/* slab table for the active tier */}
+      {!compact && slabs.length > 0 && (
         <div className="mt-5">
-          <p className="mb-2 font-semibold">দামের স্ল্যাব</p>
-          <div className="overflow-hidden rounded-xl border border-ink/10">
+          <p className="mb-2 font-semibold">
+            দামের স্ল্যাব{tier ? ` — ${tier.name_bn}` : ""}
+          </p>
+          <motion.div
+            key={tier?.id ?? "none"}
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden rounded-xl border border-ink/10"
+          >
             <table className="w-full text-sm">
               <thead className="bg-ink/[0.04] text-left">
                 <tr>
@@ -233,12 +266,14 @@ export default function QuantityPricer({
                 </tr>
               </thead>
               <tbody>
-                {product.slabs.map((s) => {
+                {slabs.map((s) => {
                   const active = breakdown.slab?.min_qty === s.min_qty;
                   return (
                     <tr
                       key={s.min_qty}
-                      className={`border-t border-ink/10 ${active ? "bg-brand-50 font-bold text-brand-700" : ""}`}
+                      className={`border-t border-ink/10 ${
+                        active ? "bg-brand-50 font-bold text-brand-700" : ""
+                      }`}
                     >
                       <td className="px-4 py-2">{slabLabel(s)}</td>
                       <td className="px-4 py-2 text-right">
@@ -249,7 +284,7 @@ export default function QuantityPricer({
                 })}
               </tbody>
             </table>
-          </div>
+          </motion.div>
         </div>
       )}
 

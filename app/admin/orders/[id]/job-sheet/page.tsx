@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Item = {
   name: string;
+  tier?: string | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -73,7 +74,10 @@ export default async function JobSheet({ params }: { params: { id: string } }) {
         <tbody>
           {items.map((it, i) => (
             <tr key={i} className="border-b border-ink/30">
-              <td className="py-3 font-semibold">{it.name}</td>
+              <td className="py-3 font-semibold">
+                {it.name}
+                {it.tier && <span className="block text-xs font-normal">মান: {it.tier}</span>}
+              </td>
               <td className="py-3">{it.addons?.map((a) => a.name_bn).join(", ") || "—"}</td>
               <td className="py-3 text-right text-lg font-bold">
                 {it.quantity.toLocaleString("en-IN")}

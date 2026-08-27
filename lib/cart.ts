@@ -6,8 +6,8 @@ import { priceFor, normaliseQty, type Addon, type Slab } from "./pricing";
 
 /**
  * Cart lines are self-contained snapshots: they carry the product's name,
- * image, slabs and add-ons so the drawer needs no extra fetch AND so the
- * line can be re-priced correctly when the quantity is edited in the cart.
+ * image, tier, slabs and add-ons so the drawer needs no extra fetch AND so
+ * the line can be re-priced correctly when the quantity is edited.
  * All money is integer poisha.
  */
 export type CartLine = {
@@ -15,6 +15,9 @@ export type CartLine = {
   slug: string;
   name: string;
   image: string | null;
+  /** null when the product has no tiers */
+  tierId: string | null;
+  tierName: string | null;
   quantity: number;
   moq: number;
   step: number;
@@ -30,13 +33,11 @@ export type NewCartLine = Omit<CartLine, "key" | "unitPrice" | "lineTotal">;
 function repriceLine(line: NewCartLine & Partial<CartLine>): CartLine {
   const qty = normaliseQty(line.quantity, line.moq, line.step);
   const { unitPrice, total } = priceFor(line.slabs, qty, line.addons);
-  const addonKey = line.addons
-    .map((a) => a.name_bn)
-    .sort()
-    .join(",");
+  const addonKey = line.addons.map((a) => a.name_bn).sort().join(",");
   return {
     ...(line as CartLine),
-    key: `${line.slug}::${addonKey}`,
+    // the same product in two tiers is two separate lines
+    key: `${line.slug}::${line.tierId ?? "-"}::${addonKey}`,
     quantity: qty,
     unitPrice,
     lineTotal: total,
@@ -64,7 +65,7 @@ export const useCart = create<CartState>()(
           const priced = repriceLine(incoming);
           const existing = s.lines.find((l) => l.key === priced.key);
           if (!existing) return { lines: [...s.lines, priced] };
-          // same product + same add-ons -> quantities accumulate, then re-slab
+          // same product + tier + add-ons -> quantities accumulate, then re-slab
           return {
             lines: s.lines.map((l) =>
               l.key === priced.key
@@ -87,7 +88,8 @@ export const useCart = create<CartState>()(
       closeDrawer: () => set({ drawerOpen: false }),
     }),
     {
-      name: "design-wave-cart-v2",
+      // bumped: lines gained tier fields
+      name: "design-wave-cart-v3",
       partialize: (s) => ({ lines: s.lines }) as CartState,
     }
   )

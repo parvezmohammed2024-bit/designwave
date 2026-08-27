@@ -21,7 +21,7 @@ export default function GalleryMarquee({ products }: { products: Product[] }) {
   });
   const x = useTransform(scrollYProgress, [0, 1], ["2%", "-32%"]);
 
-  const withPhotos = products.filter((p) => p.image);
+  const withPhotos = products.filter((p) => p.images.length > 0 || p.image);
   if (!withPhotos.length) return null;
   const items = [...withPhotos, ...withPhotos.slice(0, 4)];
 
@@ -46,13 +46,13 @@ export default function GalleryMarquee({ products }: { products: Product[] }) {
       {full ? (
         <motion.div style={{ x }} className="mt-8 flex w-max gap-4 px-5">
           {items.map((c, i) => (
-            <MarqueeTile key={`${c.slug}-${i}`} slug={c.slug} image={c.image!} name={c.name_bn} />
+            <MarqueeTile key={`${c.slug}-${i}`} slug={c.slug} image={c.images[0]?.url ?? c.image!} name={c.name_bn} />
           ))}
         </motion.div>
       ) : (
         <div className="mt-8 flex snap-x gap-4 overflow-x-auto px-5 pb-3">
           {withPhotos.map((c) => (
-            <MarqueeTile key={c.slug} slug={c.slug} image={c.image!} name={c.name_bn} snap />
+            <MarqueeTile key={c.slug} slug={c.slug} image={c.images[0]?.url ?? c.image!} name={c.name_bn} snap />
           ))}
         </div>
       )}

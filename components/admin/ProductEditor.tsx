@@ -27,11 +27,14 @@ export default function ProductEditor({
   slabs: initialSlabs,
   addons: initialAddons,
   categories,
+  hasTiers = false,
 }: {
   product: Partial<ProductInput> & { id?: string };
   slabs: SlabInput[];
   addons: AddonInput[];
   categories: { slug: string; name_bn: string }[];
+  /** with tiers, pricing lives per-tier and this table is not used */
+  hasTiers?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -193,8 +196,14 @@ export default function ProductEditor({
           </div>
         </section>
 
-        {/* slabs */}
-        <section className="rounded-2xl border border-ink/10 bg-white p-4">
+        {/* slabs — only meaningful when the product has no tiers */}
+        <section className={`rounded-2xl border border-ink/10 bg-white p-4 ${hasTiers ? "opacity-60" : ""}`}>
+          {hasTiers && (
+            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+              This product uses tiers — pricing is edited per tier below. These
+              slabs are ignored.
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <h2 className="font-bold">Price slabs</h2>
             <button type="button"

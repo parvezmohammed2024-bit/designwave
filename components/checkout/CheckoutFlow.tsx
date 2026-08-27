@@ -146,6 +146,7 @@ export default function CheckoutFlow({
     const items = lines.map((l) => ({
       slug: l.slug,
       name: l.name,
+      tier: l.tierName,
       quantity: l.quantity,
       unitPrice: l.unitPrice,
       lineTotal: l.lineTotal,
@@ -384,7 +385,9 @@ export default function CheckoutFlow({
                 {lines.map((l) => (
                   <div key={l.key} className="flex justify-between gap-3 py-1 text-sm">
                     <span className="min-w-0 truncate">
-                      {l.name} — {toBanglaDigits(l.quantity)} পিস × {formatUnitPoisha(l.unitPrice)}
+                      {l.name}
+                      {l.tierName ? ` (${l.tierName})` : ""} — {toBanglaDigits(l.quantity)} পিস ×{" "}
+                      {formatUnitPoisha(l.unitPrice)}
                     </span>
                     <span className="shrink-0">{formatPoisha(l.lineTotal)}</span>
                   </div>

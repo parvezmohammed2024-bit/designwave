@@ -430,3 +430,57 @@ begin
   values (v_uid, 'admin@designwave.com', 'Design Wave Admin', 'admin')
   on conflict (id) do update set role = 'admin';
 end $$;
+
+-- =====================================================================
+-- Quality tiers + multi-image galleries
+-- Products with no tier rows keep using their product-level slabs.
+-- =====================================================================
+create table if not exists public.dw_product_tiers (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.dw_products(id) on delete cascade,
+  name_bn text not null,
+  description_bn text,
+  sort_order integer not null default 0,
+  is_default boolean not null default false,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists dw_tiers_product on public.dw_product_tiers(product_id, sort_order);
+create unique index if not exists dw_tiers_one_default
+  on public.dw_product_tiers(product_id) where is_default;
+
+-- NULL tier_id = a product-level (untiered) slab
+alter table public.dw_price_slabs
+  add column if not exists tier_id uuid references public.dw_product_tiers(id) on delete cascade;
+create index if not exists dw_price_slabs_tier on public.dw_price_slabs(tier_id, min_qty);
+
+create table if not exists public.dw_product_images (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.dw_products(id) on delete cascade,
+  tier_id uuid references public.dw_product_tiers(id) on delete set null,
+  url text not null,
+  alt_bn text,
+  sort_order integer not null default 0,
+  is_primary boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists dw_images_product on public.dw_product_images(product_id, sort_order);
+
+alter table public.dw_product_tiers  enable row level security;
+alter table public.dw_product_images enable row level security;
+
+create policy "tiers_public_read" on public.dw_product_tiers
+  for select to anon, authenticated using (active or public.dw_is_staff());
+create policy "tiers_staff_write" on public.dw_product_tiers
+  for all to authenticated using (public.dw_is_staff()) with check (public.dw_is_staff());
+create policy "images_public_read" on public.dw_product_images
+  for select to anon, authenticated using (true);
+create policy "images_staff_write" on public.dw_product_images
+  for all to authenticated using (public.dw_is_staff()) with check (public.dw_is_staff());
+
+-- seed the gallery from the legacy single image
+insert into public.dw_product_images (product_id, url, alt_bn, sort_order, is_primary)
+select p.id, p.image, p.name_bn, 0, true
+from public.dw_products p
+where p.image is not null
+  and not exists (select 1 from public.dw_product_images i where i.product_id = p.id);

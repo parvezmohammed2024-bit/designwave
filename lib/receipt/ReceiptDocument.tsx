@@ -25,6 +25,7 @@ export type ReceiptData = {
     total: number;
     items: {
       name: string;
+      tier?: string | null;
       quantity: number;
       unitPrice: number;
       lineTotal: number;
@@ -272,7 +273,10 @@ export function ReceiptDocument(d: ReceiptData) {
         </View>
         {d.order.items.map((it, i) => (
           <View key={i} style={s.tr}>
-            <Text style={s.cName}>{it.name}</Text>
+            <Text style={s.cName}>
+              {it.name}
+              {it.tier ? ` — ${it.tier}` : ""}
+            </Text>
             <Text style={s.cQty}>{bn(it.quantity.toLocaleString("en-IN"))}</Text>
             <Text style={s.cRate}>{tk(it.unitPrice)}</Text>
             <Text style={s.cAmt}>{tk(it.lineTotal)}</Text>
