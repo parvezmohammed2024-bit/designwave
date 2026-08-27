@@ -90,6 +90,7 @@ export default function ProductCard({
     await new Promise((r) => setTimeout(r, 260));
     const tier = item.tiers.find((t) => t.id === defaultTierId) ?? null;
     add({
+      kind: "product",
       slug: item.slug,
       name: item.name_bn,
       image: images[0]?.url ?? item.image,

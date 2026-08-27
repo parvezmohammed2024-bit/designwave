@@ -94,6 +94,9 @@ export async function loadReceiptData(
       items: items.map((it) => ({
         name: String(it.name ?? ""),
         tier: it.tier ?? null,
+        kind: it.kind ?? null,
+        components: it.components ?? null,
+        regularValue: it.regularValue ?? null,
         quantity: Number(it.quantity ?? 0),
         unitPrice: Number(it.unitPrice ?? 0),
         lineTotal: Number(it.lineTotal ?? 0),

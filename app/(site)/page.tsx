@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import Hero from "@/components/Hero";
+import { getCombos } from "@/lib/combos";
 import {
   DEFAULT_CATEGORIES,
   getBannerSlides,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/catalog";
 
 const CollectionsDeck = dynamic(() => import("@/components/CollectionsDeck"));
+const ComboBand = dynamic(() => import("@/components/ComboBand"));
 const FinishShowcase = dynamic(() => import("@/components/FinishShowcase"));
 const GalleryMarquee = dynamic(() => import("@/components/GalleryMarquee"));
 const TrustStrip = dynamic(() => import("@/components/TrustStrip"));
@@ -21,7 +23,7 @@ const CraftStrip = dynamic(() => import("@/components/CraftStrip"));
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [products, featured, slides, categories, stats, homepage] =
+  const [products, featured, slides, categories, stats, homepage, combos] =
     await Promise.all([
       getProducts(),
       getFeaturedProducts(),
@@ -31,6 +33,7 @@ export default async function HomePage() {
       getSetting<{ banner_rotation_ms: number }>("homepage", {
         banner_rotation_ms: 6000,
       }),
+      getCombos(),
     ]);
 
   return (
@@ -41,6 +44,7 @@ export default async function HomePage() {
         featured={featured}
         categories={categories}
       />
+      <ComboBand combos={combos} />
       <FinishShowcase />
       <GalleryMarquee products={products} />
       <TrustStrip stats={stats} />

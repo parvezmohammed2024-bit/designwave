@@ -12,7 +12,7 @@ export const PAYMENT_NUMBER = "01836-065919";
 export const PAYMENT_NUMBER_BN = toBanglaDigits(PAYMENT_NUMBER);
 
 export const DESIGN_CHARGE = 20_000; // ৳200
-export const DELIVERY_INSIDE_CTG = 8_000; // ৳80
+export const DELIVERY_INSIDE_CTG = 10_000; // ৳100
 export const DELIVERY_OUTSIDE_CTG = 15_000; // ৳150
 
 export function waLink(message?: string, phone = "8801836065919"): string {

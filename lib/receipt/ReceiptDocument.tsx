@@ -26,6 +26,9 @@ export type ReceiptData = {
     items: {
       name: string;
       tier?: string | null;
+      kind?: string | null;
+      components?: { name: string; tierName: string | null; quantity: number }[] | null;
+      regularValue?: number | null;
       quantity: number;
       unitPrice: number;
       lineTotal: number;
@@ -273,10 +276,26 @@ export function ReceiptDocument(d: ReceiptData) {
         </View>
         {d.order.items.map((it, i) => (
           <View key={i} style={s.tr}>
-            <Text style={s.cName}>
-              {it.name}
-              {it.tier ? ` — ${it.tier}` : ""}
-            </Text>
+            <View style={s.cName}>
+              <Text>
+                {it.name}
+                {it.tier ? " — " + it.tier : ""}
+              </Text>
+              {it.kind === "combo" &&
+                (it.components ?? []).map((c, ci) => (
+                  <Text key={ci} style={{ fontSize: 7.5, color: BRAND.inkSoft }}>
+                    • {bn(c.quantity.toLocaleString("en-IN"))} পিস {c.name}
+                    {c.tierName ? " (" + c.tierName + ")" : ""}
+                  </Text>
+                ))}
+              {it.kind === "combo" &&
+                (it.regularValue ?? 0) > it.lineTotal && (
+                  <Text style={{ fontSize: 7.5, color: BRAND.purple }}>
+                    আলাদা কিনলে {tk(it.regularValue ?? 0)} — সাশ্রয়{" "}
+                    {tk((it.regularValue ?? 0) - it.lineTotal)}
+                  </Text>
+                )}
+            </View>
             <Text style={s.cQty}>{bn(it.quantity.toLocaleString("en-IN"))}</Text>
             <Text style={s.cRate}>{tk(it.unitPrice)}</Text>
             <Text style={s.cAmt}>{tk(it.lineTotal)}</Text>

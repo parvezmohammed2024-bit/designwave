@@ -8,8 +8,17 @@ import { formatPoisha, formatUnitPoisha } from "@/lib/pricing";
 import { toBanglaDigits } from "@/lib/format";
 import { DELIVERY_INSIDE_CTG, DELIVERY_OUTSIDE_CTG } from "@/lib/site";
 
+/** Rates come from the layout so an admin edit shows up here, not just at checkout. */
+import CartComboUpsell from "./CartComboUpsell";
+
 /** Slide-out cart with the site's paper-fold entrance. Money in poisha. */
-export default function CartDrawer() {
+export default function CartDrawer({
+  deliveryInside = DELIVERY_INSIDE_CTG,
+  deliveryOutside = DELIVERY_OUTSIDE_CTG,
+}: {
+  deliveryInside?: number;
+  deliveryOutside?: number;
+}) {
   const { lines, drawerOpen, closeDrawer, setQuantity, remove } = useCart();
   const subtotal = cartSubtotal(lines);
 
@@ -85,9 +94,34 @@ export default function CartDrawer() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="bangla-safe truncate font-semibold">{l.name}</p>
-                        <p className="text-xs text-ink/60">
-                          {formatUnitPoisha(l.unitPrice)} × {toBanglaDigits(l.quantity)} পিস
-                        </p>
+                        {l.kind === "combo" ? (
+                          <p className="text-xs text-ink/60">
+                            কম্বো প্যাকেজ × {toBanglaDigits(l.quantity)}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-ink/60">
+                            {formatUnitPoisha(l.unitPrice)} × {toBanglaDigits(l.quantity)} পিস
+                          </p>
+                        )}
+                        {l.kind === "combo" && l.components && (
+                          <ul className="mt-1 space-y-0.5 border-l-2 border-brand-700/25 pl-2">
+                            {l.components.map((c, ci) => (
+                              <li key={ci} className="text-[11px] leading-snug text-ink/60">
+                                {c.name}
+                                {c.tierName ? " (" + c.tierName + ")" : ""} —{" "}
+                                {toBanglaDigits(c.quantity)} পিস
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {l.kind === "combo" &&
+                          typeof l.regularValue === "number" &&
+                          l.regularValue > l.unitPrice && (
+                            <p className="mt-0.5 text-[11px] font-semibold text-brand-700">
+                              <s className="text-ink/40">{formatPoisha(l.regularValue)}</s>{" "}
+                              {formatPoisha(l.regularValue - l.unitPrice)} সাশ্রয়
+                            </p>
+                          )}
                         {l.tierName && (
                           <span className="mt-0.5 inline-block rounded-full bg-brand-700/10 px-2 py-0.5 text-[11px] font-bold text-brand-700">
                             {l.tierName}
@@ -106,7 +140,9 @@ export default function CartDrawer() {
                             <button
                               type="button"
                               aria-label={`${l.name} — পরিমাণ কমান`}
-                              onClick={() => setQuantity(l.key, l.quantity - l.step)}
+                              onClick={() =>
+                                setQuantity(l.key, l.quantity - (l.kind === "combo" ? 1 : l.step))
+                              }
                               className="h-9 w-9 rounded-l-full hover:bg-ink/5"
                             >
                               −
@@ -117,7 +153,9 @@ export default function CartDrawer() {
                             <button
                               type="button"
                               aria-label={`${l.name} — পরিমাণ বাড়ান`}
-                              onClick={() => setQuantity(l.key, l.quantity + l.step)}
+                              onClick={() =>
+                                setQuantity(l.key, l.quantity + (l.kind === "combo" ? 1 : l.step))
+                              }
                               className="h-9 w-9 rounded-r-full hover:bg-ink/5"
                             >
                               +
@@ -136,6 +174,8 @@ export default function CartDrawer() {
                   ))}
                 </ul>
 
+                <CartComboUpsell />
+
                 <div className="border-t border-ink/10 px-5 py-4">
                   <div className="flex justify-between text-sm">
                     <span>সাবটোটাল</span>
@@ -144,7 +184,7 @@ export default function CartDrawer() {
                   <div className="mt-1 flex justify-between text-sm text-ink/60">
                     <span>ডেলিভারি চার্জ</span>
                     <span>
-                      {formatPoisha(DELIVERY_INSIDE_CTG)}–{formatPoisha(DELIVERY_OUTSIDE_CTG)}{" "}
+                      {formatPoisha(deliveryInside)}–{formatPoisha(deliveryOutside)}{" "}
                       (চেকআউটে)
                     </span>
                   </div>

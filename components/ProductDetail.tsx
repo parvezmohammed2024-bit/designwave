@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { defaultTier, imagesFor, slabsFor, type Product } from "@/lib/catalog";
+import type { Combo } from "@/lib/combos";
+import ComboUpsell from "./ComboUpsell";
 import { formatPoisha, minOrderValue } from "@/lib/pricing";
 import { toBanglaDigits } from "@/lib/format";
 import ProductGallery from "./ProductGallery";
@@ -15,10 +17,17 @@ import { PHONE_BN, waLink } from "@/lib/site";
  * Client shell for the product page — the tier choice drives the gallery,
  * the slab table and the live total together, with no page jump.
  */
-export default function ProductDetail({ product }: { product: Product }) {
+export default function ProductDetail({
+  product,
+  combos = [],
+}: {
+  product: Product;
+  combos?: Combo[];
+}) {
   const [tierId, setTierId] = useState<string | null>(
     defaultTier(product)?.id ?? null
   );
+  const [qty, setQty] = useState(product.moq);
   const tier = product.tiers.find((t) => t.id === tierId) ?? null;
   const images = imagesFor(product, tierId);
   const fromPrice = formatPoisha(
@@ -57,6 +66,13 @@ export default function ProductDetail({ product }: { product: Product }) {
             </span>
           </p>
 
+          <ComboUpsell
+            combos={combos}
+            productSlug={product.slug}
+            quantity={qty}
+            tierId={tierId}
+          />
+
           {product.tiers.length > 1 && (
             <div className="mt-6">
               <TierSelector
@@ -69,7 +85,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           )}
 
           <div className="mt-6 rounded-2xl border border-ink/10 bg-paper p-5 shadow-sm">
-            <QuantityPricer product={product} tier={tier} />
+            <QuantityPricer product={product} tier={tier} onQuantityChange={setQty} />
           </div>
 
           <div className="mt-6 space-y-2 text-sm leading-bangla text-ink/70">

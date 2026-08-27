@@ -26,12 +26,15 @@ export default function QuantityPricer({
   tier,
   compact = false,
   onAdded,
+  onQuantityChange,
 }: {
   product: Product;
   /** null when the product has no tiers */
   tier: ProductTier | null;
   compact?: boolean;
   onAdded?: () => void;
+  /** lets the page decide whether a combo upsell applies */
+  onQuantityChange?: (qty: number) => void;
 }) {
   const reduced = useReducedMotion();
   const [qty, setQty] = useState(product.moq);
@@ -58,7 +61,11 @@ export default function QuantityPricer({
     [slabs, qty, product.step_quantity]
   );
 
-  useEffect(() => setRaw(String(qty)), [qty]);
+  useEffect(() => {
+    setRaw(String(qty));
+    onQuantityChange?.(qty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qty]);
 
   // functional update so rapid clicks don't compute from a stale value
   const bump = (dir: 1 | -1) => {
@@ -104,6 +111,7 @@ export default function QuantityPricer({
     setBusy(true);
     await new Promise((r) => setTimeout(r, 260));
     add({
+      kind: "product",
       slug: product.slug,
       name: product.name_bn,
       image: product.images[0]?.url ?? product.image,

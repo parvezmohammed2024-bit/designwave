@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 type Item = {
   name: string;
   tier?: string | null;
+  kind?: string | null;
+  components?: { name: string; tierName: string | null; quantity: number }[] | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -145,6 +147,16 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                           <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">
                             {it.tier}
                           </span>
+                        )}
+                        {it.kind === "combo" && it.components && (
+                          <ul className="mt-1 border-l-2 border-brand-700/30 pl-2 text-xs text-ink/60">
+                            {it.components.map((c, ci) => (
+                              <li key={ci}>
+                                {c.quantity.toLocaleString("en-IN")} × {c.name}
+                                {c.tierName ? " (" + c.tierName + ")" : ""}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                         {it.addons && it.addons.length > 0 && (
                           <span className="block text-xs text-brand-700">

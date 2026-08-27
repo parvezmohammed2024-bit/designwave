@@ -4,12 +4,31 @@ import { useState } from "react";
 import ProductCard from "./ProductCard";
 import QuickAdd from "./QuickAdd";
 import type { Product } from "@/lib/catalog";
+import type { Combo } from "@/lib/combos";
+import ComboCard from "./ComboCard";
 
-export default function ProductGrid({ products }: { products: Product[] }) {
+export default function ProductGrid({
+  products,
+  combos = [],
+}: {
+  products: Product[];
+  combos?: Combo[];
+}) {
   const [quickAdd, setQuickAdd] = useState<Product | null>(null);
 
   return (
     <>
+      {combos.length > 0 && (
+        <section className="mt-10">
+          <h2 className="bangla-safe text-2xl font-bold">হট ডিল ও কম্বো</h2>
+          <div className="mt-4 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-8">
+            {combos.map((c) => (
+              <ComboCard key={c.id} combo={c} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-8">
         {products.map((p, i) => (
           <ProductCard

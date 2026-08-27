@@ -10,11 +10,25 @@ import { priceFor, normaliseQty, type Addon, type Slab } from "./pricing";
  * the line can be re-priced correctly when the quantity is edited.
  * All money is integer poisha.
  */
+/** A component of a combo, shown indented under its line. */
+export type CartComponent = {
+  name: string;
+  tierName: string | null;
+  quantity: number;
+  value: number;
+  spec: string | null;
+};
+
 export type CartLine = {
   key: string;
   slug: string;
   name: string;
   image: string | null;
+  /** combos are fixed-price bundles; products price through slabs */
+  kind: "product" | "combo";
+  /** combo only */
+  components?: CartComponent[];
+  regularValue?: number;
   /** null when the product has no tiers */
   tierId: string | null;
   tierName: string | null;
@@ -28,9 +42,25 @@ export type CartLine = {
   lineTotal: number;
 };
 
-export type NewCartLine = Omit<CartLine, "key" | "unitPrice" | "lineTotal">;
+export type NewCartLine = Omit<CartLine, "key" | "unitPrice" | "lineTotal"> & {
+  /** required for combos (the fixed bundle price); ignored for products */
+  unitPrice?: number;
+};
 
 function repriceLine(line: NewCartLine & Partial<CartLine>): CartLine {
+  // A combo is a fixed price for the bundle — no MOQ, no slabs, the only
+  // quantity is how many bundles.
+  if (line.kind === "combo") {
+    const qty = Math.max(1, Math.round(line.quantity));
+    return {
+      ...(line as CartLine),
+      key: `combo::${line.slug}`,
+      quantity: qty,
+      unitPrice: line.unitPrice ?? 0,
+      lineTotal: (line.unitPrice ?? 0) * qty,
+    };
+  }
+
   const qty = normaliseQty(line.quantity, line.moq, line.step);
   const { unitPrice, total } = priceFor(line.slabs, qty, line.addons);
   const addonKey = line.addons.map((a) => a.name_bn).sort().join(",");
@@ -79,6 +109,8 @@ export const useCart = create<CartState>()(
         set((s) => ({
           lines: s.lines.flatMap((l) => {
             if (l.key !== key) return [l];
+            if (l.kind === "combo")
+              return quantity < 1 ? [] : [repriceLine({ ...l, quantity })];
             if (quantity < l.moq) return []; // dropping below MOQ removes the line
             return [repriceLine({ ...l, quantity })];
           }),

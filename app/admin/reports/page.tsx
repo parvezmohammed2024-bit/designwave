@@ -39,6 +39,33 @@ export default async function ReportsPage() {
     byMonth.set(m, mon);
   }
 
+  // combo vs individual — is the discount actually earning volume?
+  let comboOrders = 0;
+  let comboRevenue = 0;
+  let individualRevenue = 0;
+  const comboBreakdown = new Map<string, { count: number; revenue: number }>();
+  for (const o of live) {
+    let hasCombo = false;
+    for (const it of (Array.isArray(o.items) ? o.items : []) as any[]) {
+      const total = Number(it.lineTotal) || 0;
+      if (it.kind === "combo") {
+        hasCombo = true;
+        comboRevenue += total;
+        const cur = comboBreakdown.get(it.name) ?? { count: 0, revenue: 0 };
+        cur.count += Number(it.quantity) || 1;
+        cur.revenue += total;
+        comboBreakdown.set(it.name, cur);
+      } else {
+        individualRevenue += total;
+      }
+    }
+    if (hasCombo) comboOrders += 1;
+  }
+  const comboRows = [...comboBreakdown.entries()].sort(
+    (a, b) => b[1].revenue - a[1].revenue
+  );
+  const totalItemRevenue = comboRevenue + individualRevenue;
+
   // best sellers
   const products = new Map<string, { qty: number; revenue: number }>();
   for (const o of live) {
@@ -104,6 +131,51 @@ export default async function ReportsPage() {
           s="paid for design and ordered"
         />
       </div>
+
+      <section className="mt-6 rounded-2xl border border-ink/10 bg-white p-4">
+        <h2 className="font-bold">Combos vs individual products</h2>
+        <p className="mt-1 text-xs text-ink/55">
+          Whether the discount is earning volume. Revenue counts order line
+          totals, not payments received.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { l: "Orders containing a combo", v: String(comboOrders) },
+            { l: "Combo revenue", v: tk(comboRevenue) },
+            { l: "Individual revenue", v: tk(individualRevenue) },
+            {
+              l: "Combo share",
+              v: totalItemRevenue
+                ? `${Math.round((comboRevenue / totalItemRevenue) * 100)}%`
+                : "—",
+            },
+          ].map((s2) => (
+            <div key={s2.l} className="rounded-xl border border-ink/10 p-3">
+              <p className="text-xs uppercase tracking-wide text-ink/50">{s2.l}</p>
+              <p className="mt-1 text-lg font-bold">{s2.v}</p>
+            </div>
+          ))}
+        </div>
+        {comboRows.length > 0 && (
+          <table className="mt-3 w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-ink/50">
+              <tr><th className="pb-2">Combo</th><th className="pb-2 text-right">Sold</th><th className="pb-2 text-right">Revenue</th></tr>
+            </thead>
+            <tbody>
+              {comboRows.map(([name, s3]) => (
+                <tr key={name} className="border-t border-ink/10">
+                  <td className="py-2">{name}</td>
+                  <td className="py-2 text-right">{s3.count}</td>
+                  <td className="py-2 text-right font-semibold">{tk(s3.revenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {comboRows.length === 0 && (
+          <p className="mt-3 text-sm text-ink/50">No combo sales yet.</p>
+        )}
+      </section>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-ink/10 bg-white p-4">

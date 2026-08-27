@@ -146,7 +146,9 @@ export default function CheckoutFlow({
     const items = lines.map((l) => ({
       slug: l.slug,
       name: l.name,
+      kind: l.kind,
       tier: l.tierName,
+      components: l.components ?? null,
       quantity: l.quantity,
       unitPrice: l.unitPrice,
       lineTotal: l.lineTotal,
@@ -384,10 +386,30 @@ export default function CheckoutFlow({
               <div className="rounded-2xl border border-ink/10 p-5">
                 {lines.map((l) => (
                   <div key={l.key} className="flex justify-between gap-3 py-1 text-sm">
-                    <span className="min-w-0 truncate">
-                      {l.name}
-                      {l.tierName ? ` (${l.tierName})` : ""} — {toBanglaDigits(l.quantity)} পিস ×{" "}
-                      {formatUnitPoisha(l.unitPrice)}
+                    <span className="min-w-0">
+                      {/* a combo is priced per package, not per piece */}
+                      {l.kind === "combo" ? (
+                        <>
+                          <span className="block">
+                            {l.name} — {toBanglaDigits(l.quantity)} প্যাকেজ
+                          </span>
+                          <span className="block pl-3 text-xs text-ink/55">
+                            {(l.components ?? [])
+                              .map(
+                                (c) =>
+                                  `${toBanglaDigits(c.quantity)} পিস ${c.name}`
+                              )
+                              .join(" + ")}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="block truncate">
+                          {l.name}
+                          {l.tierName ? ` (${l.tierName})` : ""} —{" "}
+                          {toBanglaDigits(l.quantity)} পিস ×{" "}
+                          {formatUnitPoisha(l.unitPrice)}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0">{formatPoisha(l.lineTotal)}</span>
                   </div>
